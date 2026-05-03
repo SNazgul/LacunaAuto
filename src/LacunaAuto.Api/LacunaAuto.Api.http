@@ -1,0 +1,6 @@
+@LacunaAuto.Api_HostAddress = http://localhost:5132
+
+GET {{LacunaAuto.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
