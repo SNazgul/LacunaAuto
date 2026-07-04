@@ -21,7 +21,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LacunaAuto.Web", "src\Lacun
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LacunaAuto.Web.Client", "src\LacunaAuto.Web\LacunaAuto.Web.Client\LacunaAuto.Web.Client.csproj", "{5A70FC5B-272C-4BE2-B42D-CB0D77F61D50}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LacunaAuto.Hybrid", "LacunaAuto.Hybrid\LacunaAuto.Hybrid.csproj", "{6CEB1ECD-F647-4C06-AB83-B81E3F83377D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LacunaAuto.Hybrid", "src\LacunaAuto.Hybrid\LacunaAuto.Hybrid.csproj", "{350E4016-6849-9A9B-FF33-D5DD8D72DE2E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,10 +57,10 @@ Global
 		{5A70FC5B-272C-4BE2-B42D-CB0D77F61D50}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5A70FC5B-272C-4BE2-B42D-CB0D77F61D50}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5A70FC5B-272C-4BE2-B42D-CB0D77F61D50}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6CEB1ECD-F647-4C06-AB83-B81E3F83377D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6CEB1ECD-F647-4C06-AB83-B81E3F83377D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6CEB1ECD-F647-4C06-AB83-B81E3F83377D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6CEB1ECD-F647-4C06-AB83-B81E3F83377D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{350E4016-6849-9A9B-FF33-D5DD8D72DE2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{350E4016-6849-9A9B-FF33-D5DD8D72DE2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{350E4016-6849-9A9B-FF33-D5DD8D72DE2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{350E4016-6849-9A9B-FF33-D5DD8D72DE2E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -73,7 +73,7 @@ Global
 		{4F33886A-9452-41D9-A8EC-78050A8D192E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{42CB2C18-3792-4E90-9147-AE96B3781757} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{5A70FC5B-272C-4BE2-B42D-CB0D77F61D50} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
-		{6CEB1ECD-F647-4C06-AB83-B81E3F83377D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{350E4016-6849-9A9B-FF33-D5DD8D72DE2E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D184AAA5-6CF3-4481-9E70-402DD240BFE1}

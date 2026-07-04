@@ -53,3 +53,27 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 .vs
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Docker volumes / local data
+docker/data/
+.seq/
+postgres-data/
+
+# OS / editors
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Publish output
+publish/
+artifacts/

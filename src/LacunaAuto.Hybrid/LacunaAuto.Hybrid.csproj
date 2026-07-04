@@ -67,14 +67,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
-        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+        <PackageReference Include="Microsoft.Maui.Controls" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\src\LacunaAuto.Core\LacunaAuto.Core.csproj" />
-      <ProjectReference Include="..\src\LacunaAuto.Web\LacunaAuto.Web.Client\LacunaAuto.Web.Client.csproj" />
+      <ProjectReference Include="..\LacunaAuto.Core\LacunaAuto.Core.csproj" />
     </ItemGroup>
 
 </Project>
