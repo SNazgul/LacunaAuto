@@ -29,12 +29,26 @@ LacunaAuto/
 
 ### Logging Rules
 
-When implementing any new API endpoints, services, controllers, or business logic:
+Logging is mandatory for API, service, database, external I/O, background job, and important business logic changes.
 
-- Strictly follow the logging guidelines defined in `docs/AI/Rules/LOGGING.md`.
-- Always include proper correlation using `TraceId` and `SpanId`.
-- Log important business operations, HTTP requests/responses, and database query performance.
-- Use Serilog + OpenTelemetry as the primary logging approach.
+Follow `docs/AI/Rules/LOGGING.md`.
+
+Prefer infrastructure-level logging first:
+- HTTP request/response metadata must be handled by ASP.NET Core/Serilog request logging.
+- EF Core query timing/tracing must be handled by OpenTelemetry/EF instrumentation.
+- Unhandled exceptions must be handled by centralized exception handling/middleware.
+- TraceId and SpanId must be included through the configured logging/tracing pipeline.
+
+Add manual `ILogger<T>` logs only when they add real operational value:
+- important business operations;
+- business rule violations;
+- handled exceptions;
+- suspicious actions;
+- external integration failures;
+- long-running or unusual workflows.
+
+Do not add noisy method-entry/method-exit logs.
+Do not log sensitive data, secrets, tokens, full personal data, or large request/response bodies.
 
 
 ### UI Implementation Rules (especially from mockup images)
