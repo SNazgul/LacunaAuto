@@ -1,0 +1,123 @@
+.home-page {
+    min-height: 100vh;
+    background-color: var(--color-background-soft);
+}
+
+.page-header {
+    background-color: var(--color-background);
+    padding: var(--spacing-base);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.wordmark {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+    white-space: nowrap;
+}
+
+.search-bar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    background-color: var(--color-background-soft);
+    padding: var(--spacing-md) var(--spacing-base);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.search-bar:hover {
+    background-color: var(--color-border);
+}
+
+.search-icon {
+    font-size: 18px;
+}
+
+.search-placeholder {
+    color: var(--color-text-muted);
+    font-size: 15px;
+}
+
+.filter-button {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.filter-button:not(:disabled):hover {
+    background-color: var(--color-background-soft);
+}
+
+.filter-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.categories {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-base);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.categories::-webkit-scrollbar {
+    display: none;
+}
+
+.category-chip {
+    padding: var(--spacing-sm) var(--spacing-base);
+    border-radius: var(--radius-pill);
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.category-chip:not(:disabled):hover {
+    background-color: var(--color-background-soft);
+}
+
+.category-chip.active {
+    background-color: var(--color-accent);
+    color: white;
+    border-color: var(--color-accent);
+}
+
+.category-chip:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.listings-feed {
+    padding: var(--spacing-base);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-base);
+}

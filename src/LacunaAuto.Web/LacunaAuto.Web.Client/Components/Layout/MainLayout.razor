@@ -1,0 +1,49 @@
+@using Microsoft.Extensions.Localization
+@inherits LayoutComponentBase
+@inject IUserPreferencesService PreferencesService
+@inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
+
+<div class="app-container">
+    <main class="main-content">
+        @if (_preferences != null)
+        {
+            <CascadingValue Value="_preferences">
+                @Body
+            </CascadingValue>
+        }
+        else
+        {
+            <div class="loading-container">
+                <p>@Localizer["Loading"]</p>
+            </div>
+        }
+    </main>
+    
+    <NavMenu />
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private UserPreferences? _preferences;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _preferences = await PreferencesService.GetAsync();
+        PreferencesService.OnChanged += HandlePreferencesChanged;
+    }
+
+    private void HandlePreferencesChanged()
+    {
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        PreferencesService.OnChanged -= HandlePreferencesChanged;
+    }
+}

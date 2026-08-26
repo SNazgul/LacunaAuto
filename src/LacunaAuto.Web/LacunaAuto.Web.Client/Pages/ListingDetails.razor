@@ -1,0 +1,148 @@
+@page "/listings/{Id:int}"
+@using LacunaAuto.UI.Shared.Models
+@using LacunaAuto.UI.Shared.Formatting
+@using LacunaAuto.Web.Client.Data
+@using Microsoft.Extensions.Localization
+@using System.Globalization
+@inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
+@inject NavigationManager Navigation
+
+<PageTitle>@GetPageTitle() - Lacuna Auto</PageTitle>
+
+<div class="details-page">
+    @if (_listing == null)
+    {
+        <div class="not-found">
+            <h2>@Localizer["NotFound"]</h2>
+            <button class="back-button-inline" @onclick="NavigateBack">
+                <span>← @Localizer["Home"]</span>
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="details-header">
+            <button class="back-button" @onclick="NavigateBack">
+                <span>←</span>
+            </button>
+        </div>
+
+        <div class="details-image">
+            @if (!string.IsNullOrEmpty(_listing.ImageUrl))
+            {
+                <img src="@_listing.ImageUrl" alt="@_listing.Make @_listing.Model" />
+            }
+            else
+            {
+                <div class="image-placeholder"></div>
+            }
+        </div>
+
+        <div class="details-content">
+            <div class="title-section">
+                <span class="make-label">@_listing.Make</span>
+                <h1 class="model-heading">@_listing.Model @_listing.TrimOrVariant</h1>
+                <div class="price">
+                    @MoneyFormatter.Format(_listing.Price, _listing.OriginalCurrencyCode, _preferences?.RegionalFormat ?? "en-US")
+                </div>
+                @if (!string.IsNullOrEmpty(_listing.Location))
+                {
+                    <div class="location">📍 @_listing.Location</div>
+                }
+            </div>
+
+            <div class="quick-facts">
+                <div class="fact-item">
+                    <span class="fact-label">@Localizer["Year"]</span>
+                    <span class="fact-value">@_listing.Year</span>
+                </div>
+                <div class="fact-item">
+                    <span class="fact-label">Mileage</span>
+                    <span class="fact-value">@FormatMileage() km</span>
+                </div>
+                @if (_listing.FuelType.HasValue)
+                {
+                    <div class="fact-item">
+                        <span class="fact-label">@Localizer["Fuel"]</span>
+                        <span class="fact-value">@GetLocalizedFuelType(_listing.FuelType.Value)</span>
+                    </div>
+                }
+                @if (_listing.Transmission.HasValue)
+                {
+                    <div class="fact-item">
+                        <span class="fact-label">@Localizer["Transmission"]</span>
+                        <span class="fact-value">@GetLocalizedTransmissionType(_listing.Transmission.Value)</span>
+                    </div>
+                }
+            </div>
+
+            <div class="description-section">
+                <h2>Description</h2>
+                <p>This is a placeholder description for the @_listing.Year @_listing.Make @_listing.Model. In production, this would contain the actual listing description from the database.</p>
+            </div>
+
+            <div class="contact-section">
+                <h3>@Localizer["ContactSeller"]</h3>
+                <div class="contact-buttons">
+                    <button class="contact-button primary" disabled>
+                        📞 @Localizer["Call"]
+                    </button>
+                    <button class="contact-button secondary" disabled>
+                        💬 @Localizer["Message"]
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    [CascadingParameter]
+    private UserPreferences? _preferences { get; set; }
+
+    private VehicleListingCardModel? _listing;
+
+    protected override void OnInitialized()
+    {
+        var allListings = VehicleListingSeedData.GetAll();
+        _listing = allListings.FirstOrDefault(l => l.Id == Id);
+    }
+
+    private string GetPageTitle()
+    {
+        return _listing != null ? $"{_listing.Make} {_listing.Model}" : Localizer["NotFound"];
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private string FormatMileage()
+    {
+        if (_listing == null) return "0";
+        
+        var culture = _preferences?.RegionalFormat ?? "en-US";
+        try
+        {
+            return _listing.Mileage.ToString("N0", new CultureInfo(culture));
+        }
+        catch
+        {
+            return _listing.Mileage.ToString("N0", CultureInfo.InvariantCulture);
+        }
+    }
+
+    private string GetLocalizedFuelType(FuelType fuelType)
+    {
+        return Localizer[$"FuelType_{fuelType}"];
+    }
+
+    private string GetLocalizedTransmissionType(TransmissionType transmissionType)
+    {
+        return Localizer[$"TransmissionType_{transmissionType}"];
+    }
+}

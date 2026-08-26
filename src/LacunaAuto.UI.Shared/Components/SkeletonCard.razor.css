@@ -1,0 +1,56 @@
+.skeleton-card {
+    background: var(--color-background);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.skeleton-image {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: linear-gradient(90deg, var(--color-background-soft) 25%, var(--color-border) 50%, var(--color-background-soft) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-content {
+    padding: var(--spacing-base);
+}
+
+.skeleton-line {
+    height: 16px;
+    background: linear-gradient(90deg, var(--color-background-soft) 25%, var(--color-border) 50%, var(--color-background-soft) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.skeleton-make {
+    width: 40%;
+    height: 14px;
+}
+
+.skeleton-model {
+    width: 80%;
+    height: 18px;
+}
+
+.skeleton-price {
+    width: 50%;
+    height: 20px;
+}
+
+.skeleton-metadata {
+    width: 60%;
+    height: 14px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}

@@ -1,0 +1,87 @@
+@using LacunaAuto.UI.Shared.Models
+@using LacunaAuto.UI.Shared.Formatting
+@using Microsoft.Extensions.Localization
+@using System.Globalization
+@inject IStringLocalizer<Resources.SharedResources> Localizer
+
+<article class="listing-card" @onclick="HandleClick">
+    <div class="card-image">
+        @if (!string.IsNullOrEmpty(Model.ImageUrl))
+        {
+            <img src="@Model.ImageUrl" alt="@Model.Make @Model.Model" loading="lazy" />
+        }
+        else
+        {
+            <div class="image-placeholder"></div>
+        }
+        
+        @if (Model.IsNew)
+        {
+            <span class="badge-new">@Localizer["JustAdded"]</span>
+        }
+    </div>
+    
+    <div class="card-content">
+        <div class="card-header">
+            <span class="make-label">@Model.Make</span>
+            <h3 class="model-heading">@Model.Model @Model.TrimOrVariant</h3>
+        </div>
+        
+        <div class="price">
+            @MoneyFormatter.Format(Model.Price, Model.OriginalCurrencyCode, Preferences?.RegionalFormat ?? "en-US")
+        </div>
+        
+        <div class="metadata">
+            <span>@Model.Year</span>
+            <span class="separator">•</span>
+            <span>@FormatMileage() km</span>
+            @if (Model.FuelType.HasValue)
+            {
+                <span class="separator">•</span>
+                <span>@GetLocalizedFuelType(Model.FuelType.Value)</span>
+            }
+        </div>
+        
+        @if (!string.IsNullOrEmpty(Model.Location))
+        {
+            <div class="location">@Model.Location</div>
+        }
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired]
+    public required VehicleListingCardModel Model { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    [CascadingParameter]
+    public UserPreferences? Preferences { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (OnClick.HasDelegate)
+        {
+            await OnClick.InvokeAsync();
+        }
+    }
+
+    private string FormatMileage()
+    {
+        var culture = Preferences?.RegionalFormat ?? "en-US";
+        try
+        {
+            return Model.Mileage.ToString("N0", new CultureInfo(culture));
+        }
+        catch
+        {
+            return Model.Mileage.ToString("N0", CultureInfo.InvariantCulture);
+        }
+    }
+
+    private string GetLocalizedFuelType(FuelType fuelType)
+    {
+        return Localizer[$"FuelType_{fuelType}"];
+    }
+}

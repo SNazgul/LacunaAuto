@@ -1,0 +1,213 @@
+.details-page {
+    min-height: 100vh;
+    background-color: var(--color-background-soft);
+}
+
+.details-header {
+    position: fixed;
+    top: var(--spacing-base);
+    left: var(--spacing-base);
+    z-index: 20;
+}
+
+.back-button {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    border-radius: 50%;
+    color: var(--color-text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s;
+}
+
+.back-button:hover {
+    transform: scale(1.05);
+}
+
+.details-image {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background-color: var(--color-background-soft);
+}
+
+.details-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--color-background-soft) 0%, var(--color-border) 100%);
+}
+
+.details-content {
+    background-color: var(--color-background);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    margin-top: -20px;
+    padding: var(--spacing-xl);
+    position: relative;
+    z-index: 1;
+}
+
+.title-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.make-label {
+    display: block;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.model-heading {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-md) 0;
+    line-height: 1.2;
+}
+
+.price {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.location {
+    color: var(--color-text-secondary);
+    font-size: 15px;
+}
+
+.quick-facts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-base);
+    padding: var(--spacing-lg);
+    background-color: var(--color-background-soft);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.fact-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fact-label {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.fact-value {
+    font-size: 16px;
+    color: var(--color-text-primary);
+    font-weight: 600;
+}
+
+.description-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.description-section h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.description-section p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+}
+
+.contact-section {
+    padding: var(--spacing-lg);
+    background-color: var(--color-background-soft);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-2xl);
+}
+
+.contact-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--spacing-base) 0;
+}
+
+.contact-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.contact-button {
+    flex: 1;
+    padding: var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.contact-button.primary {
+    background-color: var(--color-dark-action);
+    color: white;
+}
+
+.contact-button.secondary {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.contact-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.not-found {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    padding: var(--spacing-2xl);
+    text-align: center;
+}
+
+.not-found h2 {
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-base);
+}
+
+.back-button-inline {
+    background-color: var(--color-accent);
+    color: white;
+    border: none;
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.back-button-inline:hover {
+    background-color: var(--color-accent-hover);
+}

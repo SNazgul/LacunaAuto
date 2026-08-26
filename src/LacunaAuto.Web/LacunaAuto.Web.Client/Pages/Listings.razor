@@ -1,0 +1,59 @@
+@page "/listings"
+@using LacunaAuto.UI.Shared.Components
+@using LacunaAuto.Web.Client.Data
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
+@inject NavigationManager Navigation
+
+<PageTitle>@Localizer["Search"] - Lacuna Auto</PageTitle>
+
+<div class="listings-page">
+    <header class="page-header">
+        <button class="back-button" @onclick="NavigateBack">
+            <span>←</span>
+        </button>
+        <div class="header-info">
+            <span class="result-count">@_listings.Count @Localizer["Results"]</span>
+            <span class="sort-label">@Localizer["Newest"]</span>
+        </div>
+        <button class="filter-button" disabled>
+            <span>⚙️</span>
+        </button>
+    </header>
+
+    <div class="listings-content">
+        @if (_listings.Count == 0)
+        {
+            <div class="empty-state">
+                <p>@Localizer["NoResultsFound"]</p>
+                <a href="/" class="clear-link">@Localizer["ClearFilters"]</a>
+            </div>
+        }
+        else
+        {
+            @foreach (var listing in _listings)
+            {
+                <VehicleListingCard Model="listing" OnClick="() => NavigateToDetails(listing.Id)" />
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<VehicleListingCardModel> _listings = Array.Empty<VehicleListingCardModel>();
+
+    protected override void OnInitialized()
+    {
+        _listings = VehicleListingSeedData.GetAll();
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void NavigateToDetails(int id)
+    {
+        Navigation.NavigateTo($"/listings/{id}");
+    }
+}

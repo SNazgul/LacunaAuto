@@ -1,0 +1,29 @@
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
+@inject NavigationManager Navigation
+
+<nav class="bottom-nav">
+    <NavLink href="" class="nav-item" Match="NavLinkMatch.All">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">@Localizer["Home"]</span>
+    </NavLink>
+    
+    <NavLink href="listings" class="nav-item">
+        <span class="nav-icon">🔍</span>
+        <span class="nav-label">@Localizer["Search"]</span>
+    </NavLink>
+    
+    <button class="nav-item sell-button" disabled>
+        <span class="nav-icon-large">+</span>
+    </button>
+    
+    <div class="nav-item nav-item-disabled">
+        <span class="nav-icon">❤️</span>
+        <span class="nav-label">@Localizer["Saved"]</span>
+    </div>
+    
+    <div class="nav-item nav-item-disabled">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">@Localizer["Profile"]</span>
+    </div>
+</nav>

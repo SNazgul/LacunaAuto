@@ -1,0 +1,58 @@
+@page "/"
+@using LacunaAuto.UI.Shared.Components
+@using LacunaAuto.Web.Client.Data
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
+@inject NavigationManager Navigation
+
+<PageTitle>Lacuna Auto</PageTitle>
+
+<div class="home-page">
+    <header class="page-header">
+        <div class="header-content">
+            <h1 class="wordmark">Lacuna</h1>
+            <div class="search-bar" @onclick="NavigateToListings">
+                <span class="search-icon">🔍</span>
+                <span class="search-placeholder">@Localizer["Search"]</span>
+            </div>
+            <button class="filter-button" disabled>
+                <span>⚙️</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="categories">
+        <button class="category-chip active">@Localizer["AllVehicles"]</button>
+        <button class="category-chip" disabled>@Localizer["Electric"]</button>
+        <button class="category-chip" disabled>@Localizer["SUVs"]</button>
+        <button class="category-chip" disabled>@Localizer["Sports"]</button>
+        <button class="category-chip" disabled>@Localizer["Sedans"]</button>
+        <button class="category-chip" disabled>@Localizer["Trucks"]</button>
+    </div>
+
+    <div class="listings-feed">
+        @foreach (var listing in _listings)
+        {
+            <VehicleListingCard Model="listing" OnClick="() => NavigateToDetails(listing.Id)" />
+        }
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<VehicleListingCardModel> _listings = Array.Empty<VehicleListingCardModel>();
+
+    protected override void OnInitialized()
+    {
+        _listings = VehicleListingSeedData.GetAll();
+    }
+
+    private void NavigateToListings()
+    {
+        Navigation.NavigateTo("/listings");
+    }
+
+    private void NavigateToDetails(int id)
+    {
+        Navigation.NavigateTo($"/listings/{id}");
+    }
+}
