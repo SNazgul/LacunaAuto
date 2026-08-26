@@ -144,3 +144,14 @@ For cross-cutting infrastructure tasks such as logging, authentication, configur
 - docker-compose*.yml
 - Directory.Packages.props
 - *.csproj
+
+
+For product behavior, MVP boundaries, and feature scope, read `docs/Product/PRODUCT_SCOPE.md`.
+
+
+### Translated Documentation
+
+- Files located under `Translations/` are human-readable translations only.
+- AI agents must not read or use translated documentation unless explicitly requested by the user.
+- English documentation outside `Translations/` is canonical.
+- If a translation conflicts with the canonical English document, always follow the English document.
