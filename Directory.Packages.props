@@ -2,49 +2,46 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- MAUI version for .NET 10 projects -->
-    <MauiVersion>10.0.0</MauiVersion>
+    <MauiVersion>10.0.100</MauiVersion>
   </PropertyGroup>
-
   <!-- MAUI Framework Packages -->
   <ItemGroup>
+    <PackageVersion Include="bunit" Version="2.9.0" />
     <PackageVersion Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
   </ItemGroup>
-
   <!-- ASP.NET Core Packages -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="8.0.15" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.5" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.11" />
   </ItemGroup>
-
   <!-- Logging & Extensions -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.16.0" />
-    <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.11" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageVersion Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageVersion Include="Serilog.Enrichers.Process" Version="3.0.0" />
     <PackageVersion Include="Serilog.Enrichers.Span" Version="3.1.0" />
     <PackageVersion Include="Serilog.Enrichers.Thread" Version="4.0.0" />
-    <PackageVersion Include="Serilog.Settings.Configuration" Version="9.0.0" />
-    <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
-    <PackageVersion Include="Serilog.Sinks.Seq" Version="8.0.0" />
+    <PackageVersion Include="Serilog.Settings.Configuration" Version="10.0.1" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageVersion Include="Serilog.Sinks.Seq" Version="9.1.0" />
   </ItemGroup>
-
   <!-- API & Documentation -->
   <ItemGroup>
-    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.2.3" />
   </ItemGroup>
-
   <!-- Testing Packages -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
-    <PackageVersion Include="xunit" Version="2.4.2" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.4.5" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
   </ItemGroup>
 </Project>
