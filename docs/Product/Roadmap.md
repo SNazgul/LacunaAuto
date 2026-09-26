@@ -4,95 +4,213 @@
 
 Deliver a working web classifieds service where application users register with email, verify their accounts through Telegram or Viber during registration, and create and manage vehicle listings with photos. Visitors can browse, filter, and view details; signed-in users can contact sellers through private listing chats with photo attachments.
 
-[PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) defines product scope. [UI_SPEC.md](UI/UI_SPEC.md) defines the UI direction. This roadmap defines the delivery sequence and can be expanded as decisions are made.
+[PRODUCT_SCOPE.md](PRODUCT_SCOPE.md) defines product scope and MVP boundaries. [UI_SPEC.md](UI/UI_SPEC.md) defines the UI direction. [CURRENT_WORK.md](../Development/CURRENT_WORK.md) tracks the active implementation slice, verified progress, known issues, and open implementation questions.
 
 All production listings are added by application users. Mock/seed data supports development; the browsing prototype is an intermediate milestone toward the complete service.
 
+## Delivery Principle
+
+Keep the product runnable and usable after every accepted implementation slice, even when the available feature set is still small.
+
+Prefer small vertical slices that connect the UI, API, persistence, and external services as soon as those layers are introduced. Do not build large disconnected layers and postpone integration to a later milestone unless there is a specific reason to do so.
+
+For each slice:
+
+1. define the smallest useful outcome;
+2. implement only what that outcome needs;
+3. connect the layers immediately;
+4. validate the result, including visual validation when UI is involved;
+5. record verified progress in `CURRENT_WORK.md`;
+6. only then expand to the next slice.
+
+Automated tests should be added alongside the behavior they protect. The final stabilization milestone closes remaining coverage, integration, regression, performance, and operational gaps rather than postponing all testing until the end.
+
 ## Main Milestones
 
-- [ ] 1. Implement the Web UI.
-- [ ] 2. Implement the domain model and database structure.
-- [ ] 3. Implement email registration and account verification through Telegram or Viber.
-- [ ] 4. Choose and implement storage for listing photos and private chat photos.
-- [ ] 5. Implement the listing-management and browsing API.
-- [ ] 6. Implement private listing chats with photos and last-message editing.
-- [ ] 7. Connect the Web UI, API, database, and external services.
-- [ ] 8. Validate and stabilize the complete product.
-- [ ] 9. Deploy the service and onboard initial users.
+- [ ] 1. Complete the browsing UI foundation.
+- [ ] 2. Deliver the listings browsing vertical slice.
+- [ ] 3. Deliver the authentication and basic account vertical slice.
+- [ ] 4. Choose the photo-storage architecture and operational limits.
+- [ ] 5. Deliver the listing-management vertical slice with photos.
+- [ ] 6. Deliver the private listing-chat vertical slice with photos.
+- [ ] 7. Validate and stabilize the complete product.
+- [ ] 8. Deploy the service and onboard initial users.
 
-These checkboxes track verified outcomes. Existing implementation has not yet been assessed against every milestone; an unchecked item does not mean all of its code is missing.
+Roadmap checkboxes represent verified milestone outcomes, not individual commits or partially implemented code. Detailed active status belongs in `CURRENT_WORK.md`.
 
-## 1. Implement the Web UI
+## 1. Complete the Browsing UI Foundation
 
-Complete the main layout, Home, Listings, and Listing Details screens, then the registration/sign-in/verification flow, basic account area, My Listings, listing creation/editing with photo management, and private listing chats. Include conversation access, text/photo sending, and editing of an eligible last message. Use mock/seed data initially. Include responsive layouts, agreed filters, seller contacts, and loading, empty, validation, and error states.
+Complete and visually validate the current browsing experience using development seed/mock data where necessary.
 
-**Done when:** the buyer and seller flows can be exercised on mobile and desktop, with any simulated behavior clearly identified until integration is complete.
+This milestone includes:
 
-Reuse existing pages and components. Integrate one working flow at a time instead of waiting for every screen to be polished.
+- application shell, routing, and navigation;
+- Home;
+- Listings;
+- Listing Details;
+- reusable listing UI components and shared design tokens;
+- responsive mobile and desktop behavior;
+- the current localization/preferences foundation;
+- loading, empty, and error-state patterns needed by the browsing flow;
+- PWA installability for the Web client.
 
-## 2. Implement the Domain Model and Database Structure
+Do not expand this milestone into registration, listing creation, account management, photo upload, or chat screens. Those UI flows belong to the vertical slices that introduce their real behavior.
 
-Use PostgreSQL with EF Core configuration and migrations. Define the Core models and Data persistence for users, email identity, account-verification state/channel, listing ownership, publication state, vehicle attributes, price/currency, contact information, and image metadata/external storage references. Include listing conversations, their two participants, ordered messages, edit timestamps, and private attachment references. Include relationships, constraints, query indexes, and development seed data.
+**Done when:** Home, Listings, and Listing Details can be exercised on representative mobile and desktop widths, the current localization/preferences behavior has been verified, PWA installation works, and the browsing prototype is visually accepted as a stable foundation for the first real backend slice.
 
-**Done when:** a fresh database can be created reproducibly and persists users, verification state, listings, conversations/messages, and photo references with the relationships and constraints needed by the application.
+Reuse existing pages and components. Do not rewrite accepted UI merely because the backend is still simulated.
 
-Coordinate image metadata with milestone 4. All listing photos, chat attachments, thumbnails, and generated image variants are stored outside PostgreSQL in the chosen storage service. PostgreSQL contains structured data and text plus metadata and external references such as storage keys; it must not contain image bytes, BLOBs, or Base64-encoded images. Evaluate managed object storage or already-included server disk within the initial budget.
+## 2. Deliver the Listings Browsing Vertical Slice
 
-## 3. Implement Email Registration and Account Verification
+Replace the seed-only browsing path with the smallest real end-to-end listings implementation.
 
-Keep email-based registration, sign-in, and account recovery. Add a Telegram or Viber verification step during registration, linked to the same account. Define email confirmation separately: receiving a messenger code does not confirm ownership of the supplied email address.
+Define only the listing/domain data needed by the current browsing UI. Add the required Core models, PostgreSQL/EF Core persistence, migrations, development data, and minimal public API endpoints for listing search/list and details. Public queries must expose only published listings.
 
-Evaluate the verification providers and implement the supported channel(s), verification expiry, retry limits, failure handling, and account activation rules. Decide the behavior for users without a supported messenger and for provider outages before implementation; do not silently bypass verification.
+Connect the existing Home, Listings, and Listing Details UI to the real API as part of this milestone rather than deferring integration. Introduce the first agreed filters, pagination, and sorting only as needed for the usable browsing slice.
 
-**Done when:** a user can register with email, complete the agreed messenger-verification flow, sign in, and recover access; account permissions follow the defined verification state.
+Keep listing prices in their original currency until real conversion is explicitly implemented. Image records may contain metadata/external references, but image file storage itself is handled by later photo-storage/listing-management work.
 
-Provider research starting points: [Telegram Gateway](https://core.telegram.org/gateway) delivers verification codes to a voluntarily supplied Telegram-linked phone number; [Viber Business Messages](https://www.forbusiness.viber.com/en/business-messages/) supports registration OTP messages. Confirm onboarding, recipient coverage, costs, and whether both channels are available at launch. Provider selection and first-release channel coverage remain open decisions.
+Include input validation, consistent errors, and logging according to repository rules. Add focused tests for the introduced domain, persistence, and API behavior.
 
-## 4. Choose and Implement Listing and Chat Photo Storage
+**Done when:** a fresh development database can be created reproducibly, published listings can be queried through the API, and the existing Home / Listings / Listing Details flow works against real persisted data without relying on seed-only client data.
 
-Plan for tens of thousands of listing photos, private chat photos, image variants, and future growth.
+## 3. Deliver the Authentication and Basic Account Vertical Slice
 
-**Budget constraint:** target no additional recurring storage cost for the initial pilot. Evaluate small legitimate free allowances, compression, quotas, and any disk already included in hosting. Record storage, delivery, request, processing, and backup costs separately; do not assume free storage means free operation at unlimited scale.
+Implement email-based registration, sign-in, sign-out, account recovery, and the minimum account area required by the MVP. Add the required user/account persistence, API behavior, authentication/authorization, and corresponding Web UI in the same slice.
 
-**Storage boundary:** every original image and derived image file is external to the application database. The database stores data, text, metadata, and external object references only. Enforce this boundary for listing uploads, chat attachments, thumbnails, and future generated variants.
+Add the Telegram or Viber verification step during registration, linked to the same account. Messenger verification does not prove ownership of the supplied email address; email confirmation behavior must be defined separately.
 
-**Recommended approach, provider pending:** evaluate one Backblaze B2 account for a limited pilot, Cloudflare R2 for image-delivery needs, or existing persistent server disk when available. Store metadata/references in PostgreSQL. Published listing images may use public delivery/caching; drafts and chat photos require protected access. The comparison of these choices, many free accounts, Telegram storage, and low fixed-price plans is in [PhotoStorage.md](Features/PhotoStorage.md).
+Before implementation, resolve supported verification provider(s), expiry, retry limits, failure handling, account activation rules, provider outage behavior, and fallback/recovery behavior. Do not silently bypass required verification.
 
-Before implementing uploads, measure compressed-photo sizes and record the selected provider/region, verified cost controls, global/per-user quotas, photos-per-listing and per-message limits, upload-size limits, and original-image retention policy. Include thumbnail/detail-image generation, upload validation, failed-upload cleanup, deletion/cache invalidation, and backup/recovery. Define how new uploads and image delivery behave when free limits are reached, without deleting existing content or silently enabling paid usage.
+Provider research starting points:
 
-**Done when:** the storage decision covers budget/capacity limits, public listing images, and private chat attachments; users can manage their own listing photos, and only conversation participants can upload/retrieve chat photos. Draft access, failed uploads, quota exhaustion, lifecycle cleanup, expected-volume behavior, and restore have been verified.
+- [Telegram Gateway](https://core.telegram.org/gateway)
+- [Viber Business Messages](https://www.forbusiness.viber.com/en/business-messages/)
 
-## 5. Implement the Listing-Management and Browsing API
+Confirm onboarding, recipient coverage, costs, and first-release channel coverage before relying on a provider.
 
-Implement creation, editing, publication, unpublishing, and deletion for a user's own listings and photo associations. Provide public listing search/list and details endpoints with the agreed filters, pagination, and sorting. Public queries must expose only published listings. Include input validation, ownership checks, consistent errors, and logging according to repository rules.
+Add focused tests for account state, authentication boundaries, verification state transitions, and authorization rules.
 
-**Done when:** users can manage only their own listings, and visitors can query published listings with usable seller contact information and image references.
+**Done when:** a user can register with email, complete the agreed messenger-verification flow, sign in, sign out, recover access, and reach the basic account area; permissions follow the authoritative account/verification state.
 
-## 6. Implement Private Listing Chats
+## 4. Choose the Photo-Storage Architecture and Operational Limits
 
-Provide a private conversation between the listing owner and an interested user for each listing/participant pair. Support text, photo attachments, and reopening conversation history. Only the sender of the newest successfully sent message can edit that message; a subsequent text or photo message locks it. Enforce participant access and the edit rule on the server, including concurrent replies and edits.
+Make the storage decision before implementing production photo-upload workflows.
 
-**Done when:** two users can exchange text/photos about a listing, other users cannot access their conversation or attachments, and last-message editing passes the scenarios in [ListingChat.md](Features/ListingChat.md).
+Plan for tens of thousands of listing photos, private chat photos, derived variants, and future growth.
 
-## 7. Connect the Web UI, API, Database, and External Services
+**Budget constraint:** target no additional recurring storage cost for the initial pilot where practical. Evaluate legitimate free allowances, compression, quotas, and any persistent disk already included in hosting. Record storage, delivery, request, processing, and backup costs separately.
 
-Replace simulated behavior with API calls and connect registration verification, photo storage, listing management, public browsing, and private chats. Handle authentication, verification, upload, message send/edit, empty-result, unavailable-listing, and service-failure states consistently.
+**Storage boundary:** every original image and derived image file is external to PostgreSQL. The database stores structured data, text, image metadata, and external object references only. Do not store image bytes, BLOBs, or Base64-encoded image content in database records.
 
-**Done when:** a user can register with email, complete verification, create a listing with photos, publish it, and manage it later; another signed-in user can find the listing and exchange private messages/photos with its seller, including an eligible edit before a reply.
+Evaluate Backblaze B2, Cloudflare R2, existing persistent server disk, or another explicitly approved option. The current comparison is in [PhotoStorage.md](Features/PhotoStorage.md).
 
-## 8. Validate and Stabilize the Complete Product
+Before this milestone is complete, decide and record:
 
-Verify the complete buyer and seller journeys, ownership boundaries, verification failures, photo lifecycle, chat/attachment privacy, last-message editing races, and important error cases. Add focused automated coverage, check mobile/desktop usability and accessibility, and verify performance at the agreed listing/photo/message volume. Check configuration, operational logging, and database/photo recovery.
+- provider and region, or the selected server-disk design;
+- public-listing versus private-chat delivery model;
+- cost controls and quota behavior;
+- global, per-user, per-listing, and per-message limits;
+- upload-size and accepted-format limits;
+- image dimensions/quality and generated variants;
+- original-file retention;
+- failed-upload cleanup and lifecycle reconciliation;
+- backup/restore approach;
+- behavior when free/capacity limits are reached;
+- abstraction/migration boundary for moving to another provider later.
 
-**Done when:** the agreed release scenarios and required restore/build/test checks pass, release-blocking defects are resolved, and the minimum support/moderation process for user-submitted listings has been decided.
+This milestone chooses and validates the architecture. Actual user-facing listing-photo upload and private chat-photo upload are implemented in milestones 5 and 6 so they can be integrated with real ownership and authorization.
 
-Validation accompanies every milestone; this phase verifies the assembled product before release.
+**Done when:** the storage approach, access model, quotas, cost controls, processing rules, cleanup, backup/restore, and migration boundary are documented well enough to implement listing and chat uploads without redesigning the persistence boundary.
 
-## 9. Deploy the Service and Onboard Initial Users
+## 5. Deliver the Listing-Management Vertical Slice with Photos
 
-Deploy the Web application, API, database, public/private photo delivery, registration-verification integrations, and any services required by the chosen chat-delivery design. Configure HTTPS, secrets, migrations, logs, service/cost monitoring, backups, and recovery procedures. Verify the PWA experience if included in the release. Invite initial sellers to create real listings and buyers to try the service.
+Implement the complete seller flow for a user's own listings.
 
-**Done when:** users can complete the seller-to-buyer journey in the deployed service, deployment and recovery procedures are checked, and feedback is recorded for the next iteration.
+In the same vertical slice, add:
+
+- My Listings;
+- listing creation;
+- listing editing;
+- publication and unpublishing;
+- deletion;
+- seller contact information;
+- listing photo upload, ordering, replacement/removal, and display;
+- ownership and authorization checks;
+- required Core/Data/API changes;
+- the corresponding Web UI;
+- integration with the selected photo-storage design from milestone 4.
+
+Only the owning user may manage a listing or its listing photos. Public browsing must continue to expose only published listings. Failed uploads, validation failures, storage quota exhaustion, and partial operations must leave the listing in an accurate recoverable state.
+
+Add focused tests for ownership boundaries, state transitions, validation, photo metadata/storage coordination, and public/private visibility.
+
+**Done when:** a signed-in verified user can create a listing with photos, publish it, see it through the real public browsing flow, later edit/unpublish/delete it, and cannot manage another user's listing or photos.
+
+## 6. Deliver the Private Listing-Chat Vertical Slice with Photos
+
+Implement a private conversation between the listing owner and an interested signed-in user for each listing/participant pair.
+
+Deliver the full slice together:
+
+- conversation persistence and participant relationships;
+- ordered message history;
+- text messages;
+- private photo attachments using the milestone 4 storage design;
+- conversation access from the listing/account UI;
+- API authorization for every conversation/message/attachment operation;
+- message send/upload progress and recoverable failure states;
+- the last-message editing rule defined in [ListingChat.md](Features/ListingChat.md);
+- the corresponding Web UI and API integration.
+
+Only the sender of the newest successfully sent message may edit that message. A subsequent successfully accepted text or photo message locks the earlier message. Enforce the rule authoritatively and atomically on the server, including stale clients and concurrent replies/edits.
+
+Add focused tests for participant privacy, direct attachment access, conversation separation, message ordering, edit races, and retry/duplicate behavior.
+
+**Done when:** two authorized users can open a conversation from a listing, exchange text/photos, reopen history, and use the allowed last-message edit behavior; a third user cannot read or modify the conversation or retrieve its private attachments.
+
+## 7. Validate and Stabilize the Complete Product
+
+By this point the main product flows should already be integrated because each earlier milestone delivered a runnable vertical slice.
+
+Validate the assembled buyer and seller journeys end to end:
+
+- browse/search/details;
+- registration, verification, sign-in, and recovery;
+- listing creation/management and photo lifecycle;
+- publication visibility and ownership boundaries;
+- private chat and attachment privacy;
+- last-message editing races;
+- important validation and service-failure cases;
+- responsive mobile/desktop usability and accessibility;
+- PWA installation;
+- performance at the agreed listing/photo/message volume;
+- configuration, operational logging, secrets, and recovery procedures.
+
+Automated tests should already exist for introduced behavior. Add missing regression/integration coverage here rather than treating this milestone as the first testing phase.
+
+Offline behavior beyond normal browser/PWA caching remains an explicit release decision; PWA installability itself is part of the Web product direction.
+
+**Done when:** agreed release scenarios, required build/test checks, recovery checks, performance expectations, and operational checks pass; release-blocking defects are resolved; and the minimum support/moderation process for user-submitted listings has been decided.
+
+## 8. Deploy the Service and Onboard Initial Users
+
+Deploy the Web application, API, PostgreSQL database, public/private photo delivery, registration-verification integrations, and any services required by the selected chat-delivery design.
+
+Configure:
+
+- HTTPS;
+- secrets;
+- migrations;
+- production logging/observability;
+- service and cost monitoring;
+- backups and restore procedures;
+- storage quota/capacity monitoring;
+- PWA installability in the deployed environment.
+
+Invite initial sellers to create real listings and buyers to try the service. Record operational issues and user feedback for the next iteration.
+
+**Done when:** users can complete the seller-to-buyer journey in the deployed service, deployment and recovery procedures have been verified, and initial feedback is captured for the next roadmap update.
 
 ## Future Product Expansion
 
@@ -105,19 +223,23 @@ After the first usable service, select the next capabilities based on feedback a
 
 ## Decisions to Resolve as the Roadmap Is Expanded
 
-- Which filters and sorting options are required for the first release?
+- Which filters and sorting options are required for the first real listings slice and the first public release?
 - Which storage provider or included server disk, region, verified free-usage controls, upload limits, backup plan, and retention rules meet the initial budget? See [PhotoStorage.md](Features/PhotoStorage.md).
 - What chat-photo limits, attachment-editing rules, retention behavior, and message-delivery mechanism will be used? See [ListingChat.md](Features/ListingChat.md).
 - Will both Telegram and Viber be available at launch, and what are the email-confirmation, activation, fallback, and recovery rules?
 - What minimum support/moderation process is needed for user-submitted listings before public launch?
-- What is the release requirement for PWA installation and offline behavior?
-- Reconcile localization scope: `PRODUCT_SCOPE.md` lists multi-language UI outside the initial MVP, while `UI_SPEC.md` section 18 requires localization infrastructure and language, regional-format, and currency preferences. Record the agreed release scope before expanding those tasks.
+- What offline behavior, if any, is required beyond normal PWA/browser caching?
+- Reconcile localization scope: `PRODUCT_SCOPE.md` lists multi-language UI outside the initial MVP, while `UI_SPEC.md` section 18 and the current UI foundation include localization infrastructure and independent language, regional-format, and currency preferences. Record the agreed release scope before expanding localization work.
 
 ## How to Maintain This Roadmap
 
-- Keep the main milestones broad; add detailed task checklists under a milestone when that work is ready to be planned.
+- Keep the main milestones outcome-oriented and broad enough to survive implementation details.
+- Prefer small vertical slices inside a milestone; the application should remain runnable and usable after each accepted slice.
+- Track active tasks, verified implementation progress, known issues, and immediate next work in [CURRENT_WORK.md](../Development/CURRENT_WORK.md), not by turning this roadmap into a commit log.
 - Review and reuse existing implementation before creating new tasks.
 - For each detailed task, state the expected result, dependencies, and how completion will be checked.
-- Mark a milestone complete only after its outcome has been verified.
+- Integrate new UI, API, persistence, and external-service behavior as soon as the slice introduces them; do not create a separate late "connect everything" phase.
+- Add focused automated tests alongside the behavior they protect.
+- Mark a milestone complete only after its `Done when` outcome has been verified.
 - Keep detailed screen, feature, and domain specifications in their respective product documents and link them here as they are created.
 - Update this roadmap when priorities change; update `PRODUCT_SCOPE.md` first when feature scope changes.
