@@ -67,6 +67,16 @@ When the task is to implement a window or component based on a mockup image:
 - Use targeted and precise searches (specific folders/files) instead of broad solution-wide searches.
 - When in doubt about scope, ask for clarification instead of exploring the entire solution.
 
+### Roadmap and Current Work
+- Read `docs/Development/CURRENT_WORK.md` before implementation work to understand the active slice, verified progress, known issues, and immediate next step.
+- Read `docs/Product/Roadmap.md` when a task affects implementation sequencing or milestone scope.
+- Prefer small vertical slices that leave the application runnable and usable after every accepted change.
+- Connect UI, API, persistence, and external services as soon as a slice introduces them; do not build large disconnected layers and defer integration to a later phase unless explicitly requested.
+- For UI work, visually validate the implemented slice before expanding to the next one when visual verification is applicable.
+- After completing implementation, update `docs/Development/CURRENT_WORK.md` with only work that was actually implemented and verified, plus any new known issues or unresolved questions.
+- Do not change `docs/Product/Roadmap.md`, `docs/Product/PRODUCT_SCOPE.md`, product priorities, or milestone order without explicit user approval.
+- Do not mark a Roadmap milestone complete merely because code exists; its documented `Done when` outcome must be verified.
+
 ## Coding Style and Conventions
 
 ### Naming Conventions
