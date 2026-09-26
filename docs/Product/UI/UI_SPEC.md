@@ -226,7 +226,7 @@ For the initial MVP, only destinations explicitly in `PRODUCT_SCOPE.md` should b
 
 Future destinations may be visually omitted, disabled, or represented only when a feature specification explicitly asks for a placeholder.
 
-`Inbox` should not occupy a permanent navigation position until messaging is actually part of product scope.
+Provide access to the user's listing conversations from the account/navigation area. Choose the exact placement in the relevant screen specification; listing details must also provide a chat entry point.
 
 ### 4.5 Central Sell Action
 
@@ -500,22 +500,22 @@ If description is long:
 
 ### 8.6 Contact CTA
 
-Preferred future actions:
+Contact actions:
 
-- **Contact Seller / Message Seller**
+- **Message Seller** — opens the private conversation for this listing and participant pair; requires sign-in.
 - **Call Seller**
 
 `Make Offer` is not a default MVP action and should only appear if explicitly introduced as a product feature.
 
-For the current MVP, a static/placeholder contact block is acceptable according to `PRODUCT_SCOPE.md`.
+The first usable service must show seller-provided contact information and support private listing chats. Placeholder contacts are acceptable only for development/demo listings. Chat behavior is defined in [ListingChat.md](../Features/ListingChat.md).
 
 ---
 
-## 9. Sell Vehicle Flow — Future Feature
+## 9. Sell Vehicle Flow — Initial MVP
 
-The approved visual direction includes a listing creation flow, but **listing creation is outside the initial MVP**.
+Listing creation and photo upload are part of the initial MVP. Application users create and manage all production listings.
 
-When this feature is moved into scope, use a **multi-step flow**, not one extremely long form.
+Use a **multi-step flow** with clear progress and validation.
 
 Suggested steps:
 
@@ -540,9 +540,9 @@ Suggested steps:
 
 ---
 
-## 10. Saved / Profile / Messaging — Future Features
+## 10. Account / Saved / Messaging
 
-These UI destinations belong to the long-term design system but are not automatically in implementation scope.
+Basic account access, own-listing management, and private listing chats are in the initial MVP. Saved listings and public profiles remain future features.
 
 ### 10.1 Saved
 
@@ -552,9 +552,9 @@ When implemented:
 - empty state should explain how to save vehicles;
 - save action should update immediately and handle backend failure gracefully.
 
-### 10.2 Profile
+### 10.2 Basic Account Area — Initial MVP
 
-When implemented:
+Include:
 
 - account basics;
 - own listings;
@@ -562,9 +562,15 @@ When implemented:
 - sign-in/sign-out state;
 - seller identity information where relevant.
 
-### 10.3 Messaging
+Registration remains email-based and includes account verification through Telegram or Viber. The UI must distinguish pending, completed, failed, and expired verification, and follow the agreed retry, fallback, and recovery behavior. Messenger verification must not be presented as confirmation of email ownership. Detailed registration and account screens should be specified before implementation.
 
-Messaging should not be added to primary navigation until a real messaging feature exists.
+### 10.3 Private Listing Chat — Initial MVP
+
+Show the listing context, the other participant, ordered message history, a text composer, and photo attachment controls. Allow participants to reopen existing conversations.
+
+Offer editing only for the current user's message while it is the newest successfully sent message in the conversation. An incoming text or photo message ends that editing opportunity. Show an edited indicator and handle server rejection of a stale edit without discarding the unsaved text.
+
+Show sending/upload progress and failure/retry states. Chat photos must load through participant-authorized access. Follow [ListingChat.md](../Features/ListingChat.md) for the complete edit rule, privacy requirements, and acceptance examples.
 
 ---
 
