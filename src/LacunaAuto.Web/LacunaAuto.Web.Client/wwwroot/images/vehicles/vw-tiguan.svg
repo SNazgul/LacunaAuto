@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Volkswagen Tiguan</title>
+  <desc id="desc">Compact SUV with a sharp profile in a studio backdrop.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#EEF2F6"/>
+      <stop offset="100%" stop-color="#DCE2EA"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#E9EEF5"/>
+      <stop offset="100%" stop-color="#C6D0D9"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#D9EBF7"/>
+      <stop offset="100%" stop-color="#B2CFDE"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="950" cy="120" r="95" fill="#FDF0C8" opacity="0.8"/>
+  <path d="M0 555c130-22 244-24 378-6 148 20 299 10 436-18 136-28 270-22 386 22v167H0Z" fill="#C4D0D8"/>
+  <g transform="translate(120 166)">
+    <ellipse cx="480" cy="403" rx="395" ry="30" fill="#697983" opacity="0.28"/>
+    <path d="M128 285c20-89 90-149 193-179l176-52 175 16c113 10 196 58 236 149l59 143H93l35-77Z" fill="url(#body)"/>
+    <path d="M226 212c58-44 132-66 218-66h130c70 0 149 19 208 68l65 53H196l30-55Z" fill="url(#glass)"/>
+    <path d="M214 286h389l32 94H176l38-94Z" fill="#F7FAFC" opacity="0.62"/>
+    <path d="M280 198h218l48 64H254l26-64Z" fill="#C0DFF2" opacity="0.8"/>
+    <circle cx="245" cy="360" r="56" fill="#101519"/>
+    <circle cx="245" cy="360" r="25" fill="#8B97A1"/>
+    <circle cx="628" cy="360" r="56" fill="#101519"/>
+    <circle cx="628" cy="360" r="25" fill="#8B97A1"/>
+    <path d="M145 302h84l16 89H164l-19-89Zm534 0h82l17 89h-92l-7-89Z" fill="#BBC7D0" opacity="0.9"/>
+    <path d="M516 267h57l13 23h-74l4-23Z" fill="#D7EAF8" opacity="0.8"/>
+  </g>
+</svg>

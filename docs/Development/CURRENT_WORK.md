@@ -25,7 +25,7 @@ Current milestone: **Roadmap milestone 1 — Complete the Browsing UI Foundation
 
 - [x] Review the Home page on a mobile viewport.
 - [x] Fix the mobile bottom navigation to a stable `Home | Sell (+) | Search` layout.
-- [ ] Review and refine the Listings page on the same mobile viewport.
+- [x] Review and refine the Listings page on the same mobile viewport.
 - [ ] Review and refine the Listing Details page on the same mobile viewport.
 - [ ] Verify the three browsing screens on desktop/responsive widths.
 - [ ] Verify EN / UK / RU UI localization on the browsing flow.
@@ -77,6 +77,7 @@ Do not build a large disconnected backend and postpone integration until later.
 
 - The Home page mobile layout has been visually reviewed and is acceptable for the current MVP foundation.
 - The mobile bottom navigation now has three stable positions: Home, central Sell (+), and Search.
+- The Listings page mobile layout has been visually reviewed and is acceptable for the current MVP foundation.
 - The top-right Home action is a filter/sliders affordance and is intentionally non-functional until the filtering slice is implemented.
 - Current vehicle images are local demo assets, not production photo-storage integration.
 - `SkeletonCard` remains available for future genuine asynchronous API loading states.

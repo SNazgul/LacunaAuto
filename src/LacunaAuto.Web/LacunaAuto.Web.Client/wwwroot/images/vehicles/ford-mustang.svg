@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Ford Mustang GT</title>
+  <desc id="desc">Sport coupe in a low-angle studio shot.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#EDF3F8"/>
+      <stop offset="100%" stop-color="#D8E0E7"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F8F2F0"/>
+      <stop offset="100%" stop-color="#D9C8BE"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#E5F1FC"/>
+      <stop offset="100%" stop-color="#A9C3E2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="940" cy="130" r="90" fill="#FBEBC3" opacity="0.85"/>
+  <path d="M0 548c151-18 277-17 410 10 172 35 312 21 457-10 140-31 280-29 333 19v153H0Z" fill="#C9D2D9"/>
+  <g transform="translate(120 170)">
+    <ellipse cx="465" cy="405" rx="385" ry="30" fill="#707D8B" opacity="0.28"/>
+    <path d="M103 287c19-85 93-154 193-181l150-39 198 13c168 11 266 91 311 196l41 113H99l4-102Z" fill="url(#body)"/>
+    <path d="M220 212c51-57 127-86 214-86h121c84 0 174 27 230 92l58 55H198l22-61Z" fill="url(#glass)"/>
+    <path d="M205 265h398l33 101H170l35-101Z" fill="#FAFCFD" opacity="0.63"/>
+    <path d="M305 185h150l62 54H283l22-54Z" fill="#D5EAF9" opacity="0.8"/>
+    <circle cx="248" cy="360" r="56" fill="#101417"/>
+    <circle cx="248" cy="360" r="25" fill="#8E99A2"/>
+    <circle cx="630" cy="360" r="56" fill="#101417"/>
+    <circle cx="630" cy="360" r="25" fill="#8E99A2"/>
+    <path d="M138 300h84l13 85H157l-19-85Zm548 0h75l17 85h-92l0-85Z" fill="#B7C3CF" opacity="0.9"/>
+    <path d="M435 261h62l13 26h-86l11-26Z" fill="#E2EEF9" opacity="0.8"/>
+  </g>
+</svg>

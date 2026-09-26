@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Audi Q5</title>
+  <desc id="desc">Luxury SUV in a clean studio environment.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F3F7FB"/>
+      <stop offset="100%" stop-color="#DDE5EE"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F6F8FA"/>
+      <stop offset="100%" stop-color="#C9D4DF"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#D8EBF8"/>
+      <stop offset="100%" stop-color="#A7C6DF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="950" cy="120" r="92" fill="#FBE8C6" opacity="0.8"/>
+  <path d="M0 553c174-18 298-16 440 8 163 28 324 17 447-12 154-36 229-22 313 21v151H0Z" fill="#C5CDD7"/>
+  <g transform="translate(105 168)">
+    <ellipse cx="490" cy="405" rx="398" ry="30" fill="#727F8B" opacity="0.28"/>
+    <path d="M120 287c20-94 91-164 202-190l153-52 173 11c156 10 256 89 296 198l50 130H95l25-97Z" fill="url(#body)"/>
+    <path d="M228 218c60-53 145-80 234-80h120c94 0 176 30 234 91l59 48H184l44-59Z" fill="url(#glass)"/>
+    <path d="M206 278h401l37 101H174l32-101Z" fill="#F9FBFD" opacity="0.62"/>
+    <path d="M286 204h224l44 58H281l5-58Z" fill="#C5DDF5" opacity="0.8"/>
+    <circle cx="246" cy="360" r="57" fill="#101519"/>
+    <circle cx="246" cy="360" r="24" fill="#8A98A2"/>
+    <circle cx="642" cy="360" r="57" fill="#101519"/>
+    <circle cx="642" cy="360" r="24" fill="#8A98A2"/>
+    <path d="M136 308h78l17 84H158l-22-84Zm564 0h76l18 84h-89l-5-84Z" fill="#BABFC8" opacity="0.9"/>
+    <path d="M416 247h84l18 22h-108l6-22Z" fill="#DDECF9" opacity="0.8"/>
+  </g>
+</svg>

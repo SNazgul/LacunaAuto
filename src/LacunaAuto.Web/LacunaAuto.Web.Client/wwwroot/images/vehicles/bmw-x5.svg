@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">BMW X5</title>
+  <desc id="desc">Luxury SUV in a calm studio background.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F4F7FB"/>
+      <stop offset="100%" stop-color="#DDE5EA"/>
+    </linearGradient>
+    <linearGradient id="suvBody" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#0E1E31"/>
+      <stop offset="100%" stop-color="#263B50"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#D8EAF7"/>
+      <stop offset="100%" stop-color="#A9CBE0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="980" cy="120" r="90" fill="#FBF0C6" opacity="0.8"/>
+  <path d="M0 560c130-22 242-18 374 5 111 19 234 15 351-8 145-29 289-31 475 20v143H0Z" fill="#C8D2D9"/>
+  <g transform="translate(125 164)">
+    <ellipse cx="470" cy="395" rx="390" ry="32" fill="#7F8D9A" opacity="0.28"/>
+    <path d="M110 290c20-89 95-155 200-178l116-38 150 18c119 17 209 85 250 193l44 124H78l32-119Z" fill="url(#suvBody)"/>
+    <path d="M200 210c60-54 162-82 248-82h120c73 0 138 17 190 50l46 34H165l35-2Z" fill="url(#glass)"/>
+    <path d="M352 165h90l61 81H316l36-81Z" fill="#C0DDF1" opacity="0.8"/>
+    <path d="M258 280h325l28 96H200l58-96Z" fill="#1A2B3A" opacity="0.3"/>
+    <path d="M212 285h350l30 86H186l26-86Z" fill="#F5F7FA" opacity="0.2"/>
+    <circle cx="246" cy="360" r="58" fill="#101417"/>
+    <circle cx="246" cy="360" r="24" fill="#8D98A1"/>
+    <circle cx="640" cy="360" r="58" fill="#101417"/>
+    <circle cx="640" cy="360" r="24" fill="#8D98A1"/>
+    <path d="M120 305h72l12 90H140l-20-90Zm581 0h69l15 90h-79l-5-90Z" fill="#B6C1C9" opacity="0.9"/>
+    <path d="M200 245h32l20 22h36l-18-30h210l25 30h36l-14-22h42l68 36H200l0-16Z" fill="#D9E8F5" opacity="0.75"/>
+  </g>
+</svg>

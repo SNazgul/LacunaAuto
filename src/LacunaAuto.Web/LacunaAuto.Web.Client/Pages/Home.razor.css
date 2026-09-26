@@ -43,7 +43,14 @@
 }
 
 .search-icon {
-    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    color: var(--color-text-muted);
 }
 
 .search-placeholder {
@@ -59,10 +66,20 @@
     justify-content: center;
     background: none;
     border: none;
-    font-size: 20px;
     cursor: pointer;
     border-radius: 50%;
     transition: background-color 0.2s;
+    color: var(--color-text-primary);
+}
+
+.filter-button svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .filter-button:not(:disabled):hover {
@@ -121,3 +138,8 @@
     flex-direction: column;
     gap: var(--spacing-base);
 }
+
+.home-page .listing-card .card-image {
+    aspect-ratio: 5 / 3;
+}
+

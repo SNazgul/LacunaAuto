@@ -3,64 +3,76 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 70px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    min-height: 72px;
+    padding: 0 var(--spacing-base) max(env(safe-area-inset-bottom, 0px), var(--spacing-sm));
     background-color: var(--color-background);
     border-top: 1px solid var(--color-border);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 0 var(--spacing-sm);
     z-index: 100;
 }
 
-.nav-item {
+.nav-item,
+.bottom-nav ::deep a.nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    flex: 1;
-    padding: var(--spacing-sm);
+    min-height: 44px;
+    padding: var(--spacing-sm) 0;
     text-decoration: none;
     color: var(--color-text-secondary);
     background: none;
     border: none;
     cursor: pointer;
     transition: color 0.2s;
-    min-height: 44px;
+    text-align: center;
 }
 
-.nav-item:hover:not(.nav-item-disabled):not(.sell-button) {
+.bottom-nav ::deep .nav-item:hover:not(.sell-button) {
     color: var(--color-text-primary);
 }
 
-.nav-item.active {
+.bottom-nav ::deep .nav-item.active {
     color: var(--color-accent);
 }
 
-.nav-item-disabled {
-    opacity: 0.4;
-    cursor: default;
+.bottom-nav ::deep .nav-item-home,
+.bottom-nav ::deep .nav-item-search {
+    width: 100%;
 }
 
-.nav-icon {
-    font-size: 24px;
+.nav-icon,
+.nav-icon-large {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: block;
 }
 
 .nav-label {
     font-size: 12px;
     font-weight: 500;
+    line-height: 1.1;
+    white-space: nowrap;
 }
 
 .sell-button {
-    width: 56px;
-    height: 56px;
+    width: 58px;
+    height: 58px;
     border-radius: 50%;
     background-color: var(--color-dark-action);
     color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    margin-top: -20px;
-    flex: 0 0 auto;
+    box-shadow: 0 6px 16px rgba(16, 16, 18, 0.2);
+    padding: 0;
+    margin: 0 auto;
+    transform: translateY(-8px);
 }
 
 .sell-button:disabled {
@@ -69,6 +81,7 @@
 }
 
 .nav-icon-large {
-    font-size: 32px;
-    font-weight: 300;
+    width: 26px;
+    height: 26px;
+    stroke-width: 2.2;
 }
