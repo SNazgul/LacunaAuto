@@ -6,17 +6,16 @@ Finish the browsing UI foundation while keeping the app runnable after every acc
 
 ## Now
 
-- [ ] Review and refine the mobile `/listings/{id}` page at approximately 390×844.
-- [ ] Build after the focused UI change.
-- [ ] Visually verify the result before starting another screen.
+- [ ] Verify the accepted Home, Listings, and Listing Details screens on desktop/responsive widths.
+- [ ] Build after any focused responsive fixes.
+- [ ] Visually verify the result before moving to localization/PWA checks.
 
-Do not change backend code, auth, photo storage, or Hybrid in this task.
+Do not start backend/API/database/auth/photo-storage/Hybrid work in this task.
 
 ## Next
 
-After `/listings/{id}` is accepted:
+After desktop/responsive browsing is accepted:
 
-- verify the three browsing screens on desktop/responsive widths;
 - verify EN / UK / RU and independent Language / Regional Format / Currency;
 - verify PWA installability.
 
@@ -27,6 +26,7 @@ After the browsing UI foundation is accepted, start Roadmap milestone 2 as a sma
 - Home mobile layout reviewed and accepted.
 - Bottom navigation fixed to `Home | Sell (+) | Search`.
 - Mobile `/listings` reviewed and accepted.
+- Mobile `/listings/{id}` reviewed and accepted.
 - Shared Razor UI foundation, seed-data Home/Listings/Details, localization, and persisted preferences are in place.
 - Production data decision: PostgreSQL on the server; all image files will be stored separately in Backblaze B2.
 
