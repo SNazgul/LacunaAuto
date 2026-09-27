@@ -30,7 +30,7 @@ Automated tests should be added alongside the behavior they protect. The final s
 - [ ] 1. Complete the browsing UI foundation.
 - [ ] 2. Deliver the listings browsing vertical slice.
 - [ ] 3. Deliver the authentication and basic account vertical slice.
-- [ ] 4. Choose the photo-storage architecture and operational limits.
+- [ ] 4. Finalize the Backblaze B2 photo-storage design and operational limits.
 - [ ] 5. Deliver the listing-management vertical slice with photos.
 - [ ] 6. Deliver the private listing-chat vertical slice with photos.
 - [ ] 7. Validate and stabilize the complete product.
@@ -93,9 +93,9 @@ Add focused tests for account state, authentication boundaries, verification sta
 
 **Done when:** a user can register with email, complete the agreed messenger-verification flow, sign in, sign out, recover access, and reach the basic account area; permissions follow the authoritative account/verification state.
 
-## 4. Choose the Photo-Storage Architecture and Operational Limits
+## 4. Finalize the Backblaze B2 Photo-Storage Design and Operational Limits
 
-Make the storage decision before implementing production photo-upload workflows.
+The primary data store is PostgreSQL on the application/server infrastructure. All listing and chat image files will be stored separately in Backblaze B2; PostgreSQL stores only structured data, image metadata, and external object references.
 
 Plan for tens of thousands of listing photos, private chat photos, derived variants, and future growth.
 
@@ -103,11 +103,11 @@ Plan for tens of thousands of listing photos, private chat photos, derived varia
 
 **Storage boundary:** every original image and derived image file is external to PostgreSQL. The database stores structured data, text, image metadata, and external object references only. Do not store image bytes, BLOBs, or Base64-encoded image content in database records.
 
-Evaluate Backblaze B2, Cloudflare R2, existing persistent server disk, or another explicitly approved option. The current comparison is in [PhotoStorage.md](Features/PhotoStorage.md).
+Backblaze B2 is the selected image-storage provider. The current pricing assumption is the first 10 GB free and then $6.95/TB/month; download/egress limits and costs must be accounted for before launch. The earlier provider comparison and implementation notes remain in [PhotoStorage.md](Features/PhotoStorage.md).
 
 Before this milestone is complete, decide and record:
 
-- provider and region, or the selected server-disk design;
+- Backblaze B2 account/bucket layout and selected region;
 - public-listing versus private-chat delivery model;
 - cost controls and quota behavior;
 - global, per-user, per-listing, and per-message limits;
@@ -121,7 +121,7 @@ Before this milestone is complete, decide and record:
 
 This milestone chooses and validates the architecture. Actual user-facing listing-photo upload and private chat-photo upload are implemented in milestones 5 and 6 so they can be integrated with real ownership and authorization.
 
-**Done when:** the storage approach, access model, quotas, cost controls, processing rules, cleanup, backup/restore, and migration boundary are documented well enough to implement listing and chat uploads without redesigning the persistence boundary.
+**Done when:** the Backblaze B2 bucket/access model, quotas, cost controls, processing rules, cleanup, backup/restore, and migration boundary are documented well enough to implement listing and chat uploads without redesigning the persistence boundary.
 
 ## 5. Deliver the Listing-Management Vertical Slice with Photos
 
@@ -224,7 +224,7 @@ After the first usable service, select the next capabilities based on feedback a
 ## Decisions to Resolve as the Roadmap Is Expanded
 
 - Which filters and sorting options are required for the first real listings slice and the first public release?
-- Which storage provider or included server disk, region, verified free-usage controls, upload limits, backup plan, and retention rules meet the initial budget? See [PhotoStorage.md](Features/PhotoStorage.md).
+- Which Backblaze B2 region/bucket layout, verified free-usage controls, upload limits, backup plan, and retention rules meet the initial budget? See [PhotoStorage.md](Features/PhotoStorage.md).
 - What chat-photo limits, attachment-editing rules, retention behavior, and message-delivery mechanism will be used? See [ListingChat.md](Features/ListingChat.md).
 - Will both Telegram and Viber be available at launch, and what are the email-confirmation, activation, fallback, and recovery rules?
 - What minimum support/moderation process is needed for user-submitted listings before public launch?
