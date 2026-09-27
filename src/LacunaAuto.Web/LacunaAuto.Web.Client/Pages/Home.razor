@@ -12,11 +12,19 @@
         <div class="header-content">
             <h1 class="wordmark">Lacuna</h1>
             <div class="search-bar" @onclick="NavigateToListings">
-                <span class="search-icon">🔍</span>
+                <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="10.5" cy="10.5" r="5.5" />
+                    <path d="M15.5 15.5L20 20" />
+                </svg>
                 <span class="search-placeholder">@Localizer["Search"]</span>
             </div>
-            <button class="filter-button" disabled>
-                <span>⚙️</span>
+            <button class="filter-button" type="button" aria-label="Filter" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7h16M7 12h10M10 17h4" />
+                    <circle cx="8" cy="7" r="1.5" />
+                    <circle cx="16" cy="12" r="1.5" />
+                    <circle cx="12" cy="17" r="1.5" />
+                </svg>
             </button>
         </div>
     </header>

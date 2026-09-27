@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Tesla Model 3</title>
+  <desc id="desc">Modern electric sedan in a city setting.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#EEF3F7"/>
+      <stop offset="100%" stop-color="#D8E1EA"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#D9EAF6"/>
+      <stop offset="100%" stop-color="#B7D2E8"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#EEF3F8"/>
+      <stop offset="100%" stop-color="#CDD9E6"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="20%" r="45%">
+      <stop offset="0%" stop-color="#FFF6D6" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#FFF6D6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="930" cy="130" r="130" fill="url(#sunGlow)"/>
+  <path d="M0 540c180-50 305-55 460-16 140 36 250 40 382 12 110-23 230-14 358 29v155H0Z" fill="#C9D3DB"/>
+  <g transform="translate(140 190)">
+    <ellipse cx="440" cy="380" rx="370" ry="26" fill="#7A8797" opacity="0.35"/>
+    <g filter="url(#shadow)">
+      <path d="M110 270c20-98 110-155 256-155h132c153 0 245 82 278 155l62 105H56l54-105Z" fill="url(#body)"/>
+      <path d="M210 180h236c104 0 163 38 205 90H88c22-56 68-90 122-90Z" fill="url(#glass)"/>
+      <path d="M198 206h250c82 0 142 34 174 90H143c20-41 52-90 55-90Z" fill="#A7C4DE" opacity="0.55"/>
+      <path d="M145 268h468l25 100H110l35-100Z" fill="#F4F7FB" opacity="0.7"/>
+      <path d="M182 278h278" stroke="#D0DDE8" stroke-width="7" stroke-linecap="round"/>
+      <path d="M471 278h120" stroke="#D0DDE8" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="230" cy="350" r="54" fill="#141A20"/>
+      <circle cx="230" cy="350" r="24" fill="#8E9AA6"/>
+      <circle cx="558" cy="350" r="54" fill="#141A20"/>
+      <circle cx="558" cy="350" r="24" fill="#8E9AA6"/>
+      <path d="M94 305h52l24 75H110l-16-75Zm593 0h35l18 75h-49l-4-75Z" fill="#B9C7D4" opacity="0.9"/>
+      <path d="M148 266h454" stroke="#F9FAFB" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+      <path d="M360 145h105l33 39H327l33-39Z" fill="#AFCBDE" opacity="0.7"/>
+    </g>
+  </g>
+</svg>

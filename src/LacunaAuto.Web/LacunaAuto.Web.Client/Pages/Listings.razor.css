@@ -1,15 +1,16 @@
 .listings-page {
     min-height: 100vh;
     background-color: var(--color-background-soft);
+    overflow-x: hidden;
 }
 
 .page-header {
     background-color: var(--color-background);
-    padding: var(--spacing-base);
+    padding: var(--spacing-md) var(--spacing-base);
     border-bottom: 1px solid var(--color-border);
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -23,15 +24,27 @@
     justify-content: center;
     background: none;
     border: none;
-    font-size: 24px;
     cursor: pointer;
     border-radius: 50%;
     color: var(--color-text-primary);
     transition: background-color 0.2s;
+    padding: 0;
+    flex: 0 0 auto;
 }
 
 .back-button:hover {
     background-color: var(--color-background-soft);
+}
+
+.back-button svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: block;
 }
 
 .header-info {
@@ -50,6 +63,7 @@
 .sort-label {
     font-size: 13px;
     color: var(--color-text-secondary);
+    line-height: 1.2;
 }
 
 .filter-button {
@@ -60,10 +74,23 @@
     justify-content: center;
     background: none;
     border: none;
-    font-size: 20px;
     cursor: pointer;
     border-radius: 50%;
     transition: background-color 0.2s;
+    color: var(--color-text-primary);
+    padding: 0;
+    flex: 0 0 auto;
+}
+
+.filter-button svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: block;
 }
 
 .filter-button:not(:disabled):hover {
@@ -80,6 +107,10 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-base);
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    padding-bottom: calc(var(--spacing-xl) + 88px + env(safe-area-inset-bottom, 0px));
 }
 
 .empty-state {

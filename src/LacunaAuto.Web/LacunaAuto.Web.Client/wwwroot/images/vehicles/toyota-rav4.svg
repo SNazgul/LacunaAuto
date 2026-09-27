@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Toyota RAV4 Hybrid</title>
+  <desc id="desc">Popular hybrid SUV in a scenic environment.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#EDF3F8"/>
+      <stop offset="100%" stop-color="#D9E3EA"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F2F9FE"/>
+      <stop offset="100%" stop-color="#D1DCE4"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#CCE0F3"/>
+      <stop offset="100%" stop-color="#9EC4DF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <path d="M0 520c170-16 312-10 468 17 143 24 257 21 362-12 146-46 284-48 370 11v184H0Z" fill="#C9D3DA"/>
+  <circle cx="930" cy="130" r="90" fill="#FDF3D6" opacity="0.85"/>
+  <g transform="translate(110 152)">
+    <ellipse cx="470" cy="410" rx="385" ry="30" fill="#677988" opacity="0.3"/>
+    <path d="M112 290c20-96 92-160 205-184l120-35 160 10c144 11 255 86 300 197l52 133H80l32-121Z" fill="url(#body)"/>
+    <path d="M230 220c44-44 120-72 206-72h118c97 0 177 31 226 95l56 63H192l38-86Z" fill="url(#glass)"/>
+    <path d="M210 275h371l34 96H170l40-96Z" fill="#F5F8FB" opacity="0.6"/>
+    <circle cx="250" cy="360" r="56" fill="#101316"/>
+    <circle cx="250" cy="360" r="24" fill="#8D9AA6"/>
+    <circle cx="640" cy="360" r="56" fill="#101316"/>
+    <circle cx="640" cy="360" r="24" fill="#8D9AA6"/>
+    <path d="M137 304h78l20 78H140l-3-78Zm539 0h92l17 78h-90l-19-78Z" fill="#B0BEC8" opacity="0.8"/>
+    <path d="M282 208h125l47 52H243l39-52Z" fill="#B9D6EA" opacity="0.8"/>
+    <path d="M500 208h115l43 52H470l30-52Z" fill="#B9D6EA" opacity="0.75"/>
+  </g>
+</svg>

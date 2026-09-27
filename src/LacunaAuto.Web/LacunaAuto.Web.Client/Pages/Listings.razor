@@ -9,15 +9,22 @@
 
 <div class="listings-page">
     <header class="page-header">
-        <button class="back-button" @onclick="NavigateBack">
-            <span>←</span>
+        <button class="back-button" type="button" aria-label="@Localizer["Home"]" @onclick="NavigateBack">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14.5 5L7.5 12L14.5 19" />
+            </svg>
         </button>
         <div class="header-info">
             <span class="result-count">@_listings.Count @Localizer["Results"]</span>
             <span class="sort-label">@Localizer["Newest"]</span>
         </div>
-        <button class="filter-button" disabled>
-            <span>⚙️</span>
+        <button class="filter-button" type="button" aria-label="Filter" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16M7 12h10M10 17h4" />
+                <circle cx="8" cy="7" r="1.5" />
+                <circle cx="16" cy="12" r="1.5" />
+                <circle cx="12" cy="17" r="1.5" />
+            </svg>
         </button>
     </header>
 
@@ -57,3 +64,6 @@
         Navigation.NavigateTo($"/listings/{id}");
     }
 }
+
+
+

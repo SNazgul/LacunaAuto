@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Mercedes C-Class</title>
+  <desc id="desc">Premium sedan in a minimalist urban scene.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F4F7FA"/>
+      <stop offset="100%" stop-color="#DDE5EE"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#F3F5F7"/>
+      <stop offset="100%" stop-color="#C2CCD6"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#DDECF7"/>
+      <stop offset="100%" stop-color="#B0CDE5"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <circle cx="940" cy="120" r="105" fill="#FDECC8" opacity="0.75"/>
+  <path d="M0 548c134-29 273-37 418-13 142 23 276 26 401-10 167-48 272-44 381 14v181H0Z" fill="#CBD5DD"/>
+  <g transform="translate(120 172)">
+    <ellipse cx="470" cy="395" rx="400" ry="30" fill="#717E8A" opacity="0.28"/>
+    <path d="M128 289c16-72 68-138 173-179l194-60 208 27c107 13 182 70 217 168l39 104H110l18-60Z" fill="url(#body)"/>
+    <path d="M220 213c52-45 131-68 213-68h133c99 0 185 29 241 85l67 68H176l44-85Z" fill="url(#glass)"/>
+    <path d="M214 286h360l30 98H180l34-98Z" fill="#F7FAFC" opacity="0.6"/>
+    <path d="M310 188h187l38 54H267l43-54Z" fill="#C6DFF3" opacity="0.8"/>
+    <circle cx="246" cy="360" r="56" fill="#101317"/>
+    <circle cx="246" cy="360" r="25" fill="#8C98A0"/>
+    <circle cx="638" cy="360" r="56" fill="#101317"/>
+    <circle cx="638" cy="360" r="25" fill="#8C98A0"/>
+    <path d="M146 305h80l18 80H154l-8-80Zm554 0h59l16 80h-84l9-80Z" fill="#B7C6D1" opacity="0.9"/>
+    <path d="M496 271h58l17 21h-70l-5-21Z" fill="#DDEAF8" opacity="0.75"/>
+  </g>
+</svg>

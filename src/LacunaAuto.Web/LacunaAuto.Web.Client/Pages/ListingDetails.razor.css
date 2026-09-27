@@ -1,11 +1,12 @@
 .details-page {
     min-height: 100vh;
     background-color: var(--color-background-soft);
+    overflow-x: hidden;
 }
 
 .details-header {
     position: fixed;
-    top: var(--spacing-base);
+    top: calc(var(--spacing-base) + env(safe-area-inset-top, 0px));
     left: var(--spacing-base);
     z-index: 20;
 }
@@ -19,21 +20,32 @@
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     border: none;
-    font-size: 24px;
     cursor: pointer;
     border-radius: 50%;
     color: var(--color-text-primary);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     transition: transform 0.2s;
+    padding: 0;
 }
 
 .back-button:hover {
     transform: scale(1.05);
 }
 
+.back-button svg {
+    width: 22px;
+    height: 22px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: block;
+}
+
 .details-image {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 5 / 3;
     background-color: var(--color-background-soft);
 }
 
@@ -53,9 +65,12 @@
     background-color: var(--color-background);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     margin-top: -20px;
-    padding: var(--spacing-xl);
+    padding: var(--spacing-lg);
     position: relative;
     z-index: 1;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    padding-bottom: calc(var(--spacing-2xl) + 88px + env(safe-area-inset-bottom, 0px));
 }
 
 .title-section {
@@ -71,7 +86,7 @@
 }
 
 .model-heading {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
     color: var(--color-text-primary);
     margin: 0 0 var(--spacing-md) 0;
@@ -79,15 +94,29 @@
 }
 
 .price {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 700;
     color: var(--color-text-primary);
     margin-bottom: var(--spacing-sm);
 }
 
 .location {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
     color: var(--color-text-secondary);
     font-size: 15px;
+}
+
+.location svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: 0 0 auto;
 }
 
 .quick-facts {
@@ -163,6 +192,20 @@
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+}
+
+.contact-button svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .contact-button.primary {
@@ -206,8 +249,21 @@
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
 }
 
 .back-button-inline:hover {
     background-color: var(--color-accent-hover);
+}
+
+.back-button-inline svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }

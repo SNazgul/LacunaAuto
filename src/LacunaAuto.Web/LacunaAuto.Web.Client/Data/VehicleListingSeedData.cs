@@ -24,7 +24,7 @@ public static class VehicleListingSeedData
                 FuelType = FuelType.Electric,
                 Transmission = TransmissionType.Automatic,
                 Location = "Kyiv, Ukraine",
-                ImageUrl = null,
+                ImageUrl = "/images/vehicles/tesla-model-3.svg",
                 IsNew = true
             },
             new()
@@ -40,7 +40,7 @@ public static class VehicleListingSeedData
                 FuelType = FuelType.Petrol,
                 Transmission = TransmissionType.Automatic,
                 Location = "Lviv, Ukraine",
-                ImageUrl = null,
+                ImageUrl = "/images/vehicles/bmw-x5.svg",
                 IsNew = false
             },
             new()
@@ -56,7 +56,7 @@ public static class VehicleListingSeedData
                 FuelType = FuelType.Hybrid,
                 Transmission = TransmissionType.Automatic,
                 Location = "Odesa, Ukraine",
-                ImageUrl = null,
+                ImageUrl = "/images/vehicles/toyota-rav4.svg",
                 IsNew = true
             },
             new()
@@ -72,7 +72,7 @@ public static class VehicleListingSeedData
                 FuelType = FuelType.Petrol,
                 Transmission = TransmissionType.Automatic,
                 Location = "Dnipro, Ukraine",
-                ImageUrl = null,
+                ImageUrl = "/images/vehicles/mercedes-c-class.svg",
                 IsNew = false
             },
             new()
@@ -88,7 +88,7 @@ public static class VehicleListingSeedData
                 FuelType = FuelType.Diesel,
                 Transmission = TransmissionType.Automatic,
                 Location = "Kharkiv, Ukraine",
-                ImageUrl = null,
+                ImageUrl = "/images/vehicles/vw-tiguan.svg",
                 IsNew = false
             },
             new()
@@ -104,7 +104,7 @@ public static class VehicleListingSeedData
                 FuelType = FuelType.Petrol,
                 Transmission = TransmissionType.Automatic,
                 Location = "Kyiv, Ukraine",
-                ImageUrl = null,
+                ImageUrl = "/images/vehicles/audi-q5.svg",
                 IsNew = true
             },
             new()
@@ -120,7 +120,7 @@ public static class VehicleListingSeedData
                 FuelType = FuelType.Petrol,
                 Transmission = TransmissionType.Manual,
                 Location = "Lviv, Ukraine",
-                ImageUrl = null,
+                ImageUrl = "/images/vehicles/ford-mustang.svg",
                 IsNew = false
             },
             new()
@@ -136,7 +136,7 @@ public static class VehicleListingSeedData
                 FuelType = FuelType.Petrol,
                 Transmission = TransmissionType.Automatic,
                 Location = "Odesa, Ukraine",
-                ImageUrl = null,
+                ImageUrl = "/images/vehicles/honda-crv.svg",
                 IsNew = true
             }
         };

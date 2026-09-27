@@ -2,28 +2,25 @@
 @inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
 @inject NavigationManager Navigation
 
-<nav class="bottom-nav">
-    <NavLink href="" class="nav-item" Match="NavLinkMatch.All">
-        <span class="nav-icon">🏠</span>
+<nav class="bottom-nav" aria-label="Primary navigation">
+    <NavLink href="" class="nav-item nav-item-home" Match="NavLinkMatch.All">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 10.5L12 4l8 6.5V18a2 2 0 0 1-2 2h-3.5v-7h-5v7H6a2 2 0 0 1-2-2v-7.5Z" />
+        </svg>
         <span class="nav-label">@Localizer["Home"]</span>
     </NavLink>
-    
-    <NavLink href="listings" class="nav-item">
-        <span class="nav-icon">🔍</span>
+
+    <button class="nav-item sell-button" type="button" aria-label="Sell" disabled>
+        <svg class="nav-icon-large" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+        </svg>
+    </button>
+
+    <NavLink href="listings" class="nav-item nav-item-search">
+        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="5.5" />
+            <path d="M15.5 15.5L20 20" />
+        </svg>
         <span class="nav-label">@Localizer["Search"]</span>
     </NavLink>
-    
-    <button class="nav-item sell-button" disabled>
-        <span class="nav-icon-large">+</span>
-    </button>
-    
-    <div class="nav-item nav-item-disabled">
-        <span class="nav-icon">❤️</span>
-        <span class="nav-label">@Localizer["Saved"]</span>
-    </div>
-    
-    <div class="nav-item nav-item-disabled">
-        <span class="nav-icon">👤</span>
-        <span class="nav-label">@Localizer["Profile"]</span>
-    </div>
 </nav>
