@@ -25,7 +25,7 @@
     else
     {
         <div class="details-header">
-            <button class="back-button" type="button" aria-label="@Localizer["Home"]" @onclick="NavigateBack">
+            <button class="back-button" type="button" aria-label="@Localizer["Search"]" @onclick="NavigateToListings">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M14.5 5L7.5 12L14.5 19" />
                 </svg>
@@ -136,6 +136,11 @@
     private void NavigateBack()
     {
         Navigation.NavigateTo("/");
+    }
+
+    private void NavigateToListings()
+    {
+        Navigation.NavigateTo("/listings");
     }
 
     private string FormatMileage()
