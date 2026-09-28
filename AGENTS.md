@@ -77,6 +77,14 @@ When the task is to implement a window or component based on a mockup image:
 - Do not change `docs/Product/Roadmap.md`, `docs/Product/PRODUCT_SCOPE.md`, product priorities, or milestone order without explicit user approval.
 - Do not mark a Roadmap milestone complete merely because code exists; its documented `Done when` outcome must be verified.
 
+### Task Review Handoff
+- At the end of every implementation task, before sending the final chat response, create or overwrite `docs/CURRENT_WORK/Agent_Response.md`.
+- The file must contain **only the final response for the current task/prompt**. Do not include earlier chat messages, prior task reports, hidden reasoning, tool transcripts, or the full conversation.
+- The content should match the final task report you intend to send to the user: what changed, validation/build result, files changed, anything intentionally not changed, and any relevant issue/blocker.
+- Always overwrite the previous `Agent_Response.md`; never append multiple task reports.
+- `docs/CURRENT_WORK/` is temporary branch-only review material. Its contents may be committed/pushed on the working branch so they can be reviewed, but **must not be merged into `main`**.
+- Do not treat `Agent_Response.md` as authoritative project state. Source code, Git diff, canonical product docs, and `docs/Development/CURRENT_WORK.md` remain authoritative.
+
 ## Coding Style and Conventions
 
 ### Naming Conventions
