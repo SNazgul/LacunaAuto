@@ -2,7 +2,7 @@
 @inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
 @inject NavigationManager Navigation
 
-<nav class="bottom-nav" aria-label="Primary navigation">
+<nav class="bottom-nav" aria-label="@Localizer["PrimaryNavigation"]">
     <NavLink href="" class="nav-item nav-item-home" Match="NavLinkMatch.All">
         <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 10.5L12 4l8 6.5V18a2 2 0 0 1-2 2h-3.5v-7h-5v7H6a2 2 0 0 1-2-2v-7.5Z" />
@@ -10,7 +10,7 @@
         <span class="nav-label">@Localizer["Home"]</span>
     </NavLink>
 
-    <button class="nav-item sell-button" type="button" aria-label="Sell" disabled>
+    <button class="nav-item sell-button" type="button" aria-label="@Localizer["Sell"]" disabled>
         <svg class="nav-icon-large" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
         </svg>

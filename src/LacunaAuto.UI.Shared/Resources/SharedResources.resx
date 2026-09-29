@@ -100,6 +100,24 @@
   <data name="Transmission" xml:space="preserve">
     <value>Transmission</value>
   </data>
+  <data name="Mileage" xml:space="preserve">
+    <value>Mileage</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="ListingPlaceholderDescription" xml:space="preserve">
+    <value>This is a placeholder description for the {0} {1} {2}. In production, this would contain the actual listing description from the database.</value>
+  </data>
+  <data name="Filter" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Sell" xml:space="preserve">
+    <value>Sell</value>
+  </data>
+  <data name="PrimaryNavigation" xml:space="preserve">
+    <value>Primary navigation</value>
+  </data>
   <!-- Fuel Type Values -->
   <data name="FuelType_Petrol" xml:space="preserve">
     <value>Petrol</value>
