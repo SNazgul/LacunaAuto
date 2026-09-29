@@ -143,3 +143,51 @@
     aspect-ratio: 5 / 3;
 }
 
+@media (min-width: 600px) {
+    .header-content,
+    .categories,
+    .listings-feed {
+        width: min(calc(100% - (var(--spacing-base) * 2)), 1240px);
+        margin: 0 auto;
+        box-sizing: border-box;
+    }
+
+    .categories {
+        padding-top: var(--spacing-lg);
+        padding-bottom: var(--spacing-lg);
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .listings-feed {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--spacing-lg);
+        padding-left: 0;
+        padding-right: 0;
+    }
+}
+
+@media (min-width: 900px) {
+    .listings-feed {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .page-header {
+        padding-top: var(--spacing-lg);
+        padding-bottom: var(--spacing-lg);
+    }
+
+    .wordmark {
+        font-size: 28px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .listings-feed {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
