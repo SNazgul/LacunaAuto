@@ -138,3 +138,45 @@
 .clear-link:hover {
     text-decoration: underline;
 }
+
+@media (min-width: 600px) {
+    .page-header,
+    .listings-content {
+        width: min(calc(100% - (var(--spacing-base) * 2)), 1240px);
+        margin: 0 auto;
+        box-sizing: border-box;
+    }
+
+    .listings-content {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--spacing-lg);
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (min-width: 900px) {
+    .listings-content {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .page-header {
+        padding-top: var(--spacing-lg);
+        padding-bottom: var(--spacing-lg);
+    }
+
+    .result-count {
+        font-size: 18px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .listings-content {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
