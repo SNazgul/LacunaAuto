@@ -100,6 +100,24 @@
   <data name="Transmission" xml:space="preserve">
     <value>Коробка</value>
   </data>
+  <data name="Mileage" xml:space="preserve">
+    <value>Пробіг</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Опис</value>
+  </data>
+  <data name="ListingPlaceholderDescription" xml:space="preserve">
+    <value>Це тимчасовий опис для {0} {1} {2}. У продакшені тут буде фактичний опис оголошення з бази даних.</value>
+  </data>
+  <data name="Filter" xml:space="preserve">
+    <value>Фільтр</value>
+  </data>
+  <data name="Sell" xml:space="preserve">
+    <value>Продати</value>
+  </data>
+  <data name="PrimaryNavigation" xml:space="preserve">
+    <value>Основна навігація</value>
+  </data>
   <!-- Fuel Type Values -->
   <data name="FuelType_Petrol" xml:space="preserve">
     <value>Бензин</value>
