@@ -2,29 +2,30 @@
 
 ## Current Goal
 
-Finish the browsing UI foundation while keeping the app runnable after every accepted change.
+Start the listings browsing vertical slice while keeping the accepted browsing UI stable and the app runnable after every change.
 
 ## Now
 
-- [x] Implement and verify the Web client PWA foundation for hosted Blazor (manifest, icons, service worker wiring, publish artifacts).
-- [ ] Confirm the app can be installed from a supported desktop/mobile browser.
-- [ ] Confirm the installed app launches into the current browsing experience.
-- [x] Re-run `dotnet build LacunaAuto.sln --nologo` after stopping any running `LacunaAuto.Web` process that locks Debug output.
+- [ ] Define the minimum listing/domain data required by the accepted Home, Listings, and Listing Details UI.
+- [ ] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
+- [ ] Add the minimal public browsing API needed by the existing UI.
+- [ ] Connect the existing browsing UI to the real API without redesigning accepted screens.
 
-Do not start backend/API/database/auth/photo-storage/Hybrid work in this task.
+Keep this as a small end-to-end slice. Do not start authentication, listing management, photo upload/storage implementation, chat, or Hybrid work in this task.
 
 ## Next
 
-After PWA installability is accepted:
+After the first real listings browsing slice is accepted:
 
-- mark Roadmap milestone 1 — Complete the Browsing UI Foundation — complete;
-- start Roadmap milestone 2 as a small vertical slice: listing domain + PostgreSQL/EF Core + minimal browsing API + connect the existing browsing UI.
+- continue milestone 2 with the first agreed filtering / pagination / sorting behavior only as needed;
+- keep prices in each listing's original currency until real conversion is explicitly implemented.
 
 ## Recently Completed
 
-- Replaced published service-worker offline precache logic with a minimal install/activate worker to avoid hosted Blazor Web App Interactive WASM framework/SRI conflicts; offline support is intentionally deferred to a separate future task.
-- Fixed published service-worker installation failure caused by non-served `LacunaAuto.Web.Client.styles.css`: removed explicit host link, preserved styling through `LacunaAuto.Web.styles.css` scoped-bundle imports, and added targeted published service-worker precache exclusion for that single generated path.
-- Hosted Blazor PWA foundation implemented in `LacunaAuto.Web` + `LacunaAuto.Web.Client`: manifest metadata, 192/512 icons, service worker registration from host document, dev vs published service-worker behavior, and Release publish artifact validation (`manifest.webmanifest`, `service-worker.js`, `service-worker-assets.js`, icons).
+- Roadmap milestone 1 — Complete the Browsing UI Foundation — accepted.
+- Web PWA installability verified in Chrome from a Release publish; the installed app launches in standalone mode.
+- Published service worker uses a minimal install/activate strategy so it does not interfere with hosted .NET 10 Blazor Web App Interactive WebAssembly static-asset fingerprinting/SRI.
+- Offline precaching/offline runtime behavior is intentionally deferred to a separate future decision/task.
 - Home mobile layout reviewed and accepted.
 - Bottom navigation fixed to `Home | Sell (+) | Search`.
 - Mobile `/listings` reviewed and accepted.
