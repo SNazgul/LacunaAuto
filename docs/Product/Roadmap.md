@@ -27,7 +27,7 @@ Automated tests should be added alongside the behavior they protect. The final s
 
 ## Main Milestones
 
-- [ ] 1. Complete the browsing UI foundation.
+- [x] 1. Complete the browsing UI foundation.
 - [ ] 2. Deliver the listings browsing vertical slice.
 - [ ] 3. Deliver the authentication and basic account vertical slice.
 - [ ] 4. Finalize the Backblaze B2 photo-storage design and operational limits.
