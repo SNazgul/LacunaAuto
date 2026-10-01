@@ -2,26 +2,30 @@
 
 ## Current Goal
 
-Finish the browsing UI foundation while keeping the app runnable after every accepted change.
+Start the listings browsing vertical slice while keeping the accepted browsing UI stable and the app runnable after every change.
 
 ## Now
 
-- [ ] Verify PWA installability for the Web client.
-- [ ] Confirm the app can be installed from a supported desktop/mobile browser.
-- [ ] Confirm the installed app launches into the current browsing experience.
-- [ ] Build after any focused PWA fixes.
+- [ ] Define the minimum listing/domain data required by the accepted Home, Listings, and Listing Details UI.
+- [ ] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
+- [ ] Add the minimal public browsing API needed by the existing UI.
+- [ ] Connect the existing browsing UI to the real API without redesigning accepted screens.
 
-Do not start backend/API/database/auth/photo-storage/Hybrid work in this task.
+Keep this as a small end-to-end slice. Do not start authentication, listing management, photo upload/storage implementation, chat, or Hybrid work in this task.
 
 ## Next
 
-After PWA installability is accepted:
+After the first real listings browsing slice is accepted:
 
-- mark Roadmap milestone 1 — Complete the Browsing UI Foundation — complete;
-- start Roadmap milestone 2 as a small vertical slice: listing domain + PostgreSQL/EF Core + minimal browsing API + connect the existing browsing UI.
+- continue milestone 2 with the first agreed filtering / pagination / sorting behavior only as needed;
+- keep prices in each listing's original currency until real conversion is explicitly implemented.
 
 ## Recently Completed
 
+- Roadmap milestone 1 — Complete the Browsing UI Foundation — accepted.
+- Web PWA installability verified in Chrome from a Release publish; the installed app launches in standalone mode.
+- Published service worker uses a minimal install/activate strategy so it does not interfere with hosted .NET 10 Blazor Web App Interactive WebAssembly static-asset fingerprinting/SRI.
+- Offline precaching/offline runtime behavior is intentionally deferred to a separate future decision/task.
 - Home mobile layout reviewed and accepted.
 - Bottom navigation fixed to `Home | Sell (+) | Search`.
 - Mobile `/listings` reviewed and accepted.
