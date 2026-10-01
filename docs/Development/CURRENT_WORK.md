@@ -6,10 +6,10 @@ Finish the browsing UI foundation while keeping the app runnable after every acc
 
 ## Now
 
-- [ ] Verify PWA installability for the Web client.
+- [x] Implement and verify the Web client PWA foundation for hosted Blazor (manifest, icons, service worker wiring, publish artifacts).
 - [ ] Confirm the app can be installed from a supported desktop/mobile browser.
 - [ ] Confirm the installed app launches into the current browsing experience.
-- [ ] Build after any focused PWA fixes.
+- [x] Re-run `dotnet build LacunaAuto.sln --nologo` after stopping any running `LacunaAuto.Web` process that locks Debug output.
 
 Do not start backend/API/database/auth/photo-storage/Hybrid work in this task.
 
@@ -22,6 +22,9 @@ After PWA installability is accepted:
 
 ## Recently Completed
 
+- Replaced published service-worker offline precache logic with a minimal install/activate worker to avoid hosted Blazor Web App Interactive WASM framework/SRI conflicts; offline support is intentionally deferred to a separate future task.
+- Fixed published service-worker installation failure caused by non-served `LacunaAuto.Web.Client.styles.css`: removed explicit host link, preserved styling through `LacunaAuto.Web.styles.css` scoped-bundle imports, and added targeted published service-worker precache exclusion for that single generated path.
+- Hosted Blazor PWA foundation implemented in `LacunaAuto.Web` + `LacunaAuto.Web.Client`: manifest metadata, 192/512 icons, service worker registration from host document, dev vs published service-worker behavior, and Release publish artifact validation (`manifest.webmanifest`, `service-worker.js`, `service-worker-assets.js`, icons).
 - Home mobile layout reviewed and accepted.
 - Bottom navigation fixed to `Home | Sell (+) | Search`.
 - Mobile `/listings` reviewed and accepted.

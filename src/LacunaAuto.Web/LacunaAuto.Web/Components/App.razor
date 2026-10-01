@@ -4,20 +4,31 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
     <base href="/" />
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["LacunaAuto.Web.styles.css"]" />
-    <link rel="stylesheet" href="@Assets["LacunaAuto.Web.Client.styles.css"]" />
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="manifest" href="@Assets["manifest.webmanifest"]" />
+    <link rel="apple-touch-icon" sizes="192x192" href="@Assets["icon-192.png"]" />
     <HeadOutlet @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
 </head>
 
 <body>
     <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script>
+        if ('serviceWorker' in navigator)
+        {
+            window.addEventListener('load', function ()
+            {
+                navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
+            });
+        }
+    </script>
 </body>
 
 </html>
