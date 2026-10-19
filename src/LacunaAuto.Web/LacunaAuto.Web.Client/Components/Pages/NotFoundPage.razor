@@ -1,0 +1,22 @@
+@page "/not-found"
+@layout MainLayout
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
+@inject NavigationManager Navigation
+
+<div class="not-found-page">
+    <h1>@Localizer["NotFound"]</h1>
+    <button class="home-button" type="button" aria-label="@Localizer["Home"]" @onclick="GoHome">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14.5 5L7.5 12L14.5 19" />
+        </svg>
+        <span>@Localizer["Home"]</span>
+    </button>
+</div>
+
+@code {
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
