@@ -53,7 +53,9 @@ internal static class Program
             Console.WriteLine($"Base       : {options.BaseRef} ({baseSha})");
             Console.WriteLine($"Head       : {options.HeadRef} ({currentHead})");
             Console.WriteLine($"App URL    : {options.AppBaseUrl}");
-            Console.WriteLine($"STRATA     : {options.StrataBaseUrl}");
+            Console.WriteLine($"STRATA     : {options.ChatCompletionsUrl}");
+            Console.WriteLine($"Auth       : {(string.IsNullOrWhiteSpace(options.ApiKey) ? "none" : "Authorization: Bearer <configured>")}");
+            Console.WriteLine($"Reasoning  : {options.ReasoningEffort}");
             Console.WriteLine($"Model      : {options.Model}");
             Console.WriteLine();
 
@@ -129,6 +131,8 @@ internal static class Program
                         baseSha,
                         headRef = options.HeadRef,
                         model = options.Model,
+                        chatCompletionsUrl = options.ChatCompletionsUrl,
+                        reasoningEffort = options.ReasoningEffort,
                         appBaseUrl = options.AppBaseUrl,
                         regressionExitCode = regression.ExitCode,
                         regressionTimedOut = regression.TimedOut,
@@ -318,6 +322,8 @@ A PASS means no material defect was found within the verified scope and the norm
 - Tested SHA: `{testedSha}`
 - Base: `{options.BaseRef}` (`{baseSha}`)
 - Model: `{options.Model}`
+- Reasoning effort: `{options.ReasoningEffort}`
+- STRATA endpoint: `{options.ChatCompletionsUrl}`
 - Application origin: `{options.AppBaseUrl}`
 - Regression exit code: `{regression.ExitCode}`
 - Regression timed out: `{regression.TimedOut}`
