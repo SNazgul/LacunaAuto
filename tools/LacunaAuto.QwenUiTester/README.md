@@ -1,0 +1,168 @@
+# LacunaAuto Qwen UI Tester
+
+Local read-only UI review runner for the LacunaAuto project.
+
+It connects the existing Playwright E2E suite with the local STRATA-hosted
+**Strata Qwen Coder** model. The runner is intentionally not an application
+implementation agent: it can inspect repository text/diffs, execute existing
+Playwright specs, inspect the preserved JSON report, and probe HTTP routes, but
+it cannot edit application or test files.
+
+## Current stage
+
+This is the first local integration stage. It proves the path:
+
+```text
+exact Git revision
+    -> runner-owned LacunaAuto.Web process
+    -> normal Playwright regression suite
+    -> STRATA /v1/chat/completions
+    -> Qwen tool-call loop
+    -> structured Markdown review
+```
+
+GitHub PR triggering and PR comments are intentionally not part of this stage.
+They should be added only after the local loop is verified.
+
+The runner also does **not** create adaptive Playwright probes yet. Qwen may
+rerun existing focused specs and must explicitly report new behavior that
+remains unverified.
+
+## Requirements
+
+- .NET SDK 10
+- Node/npm and the existing `e2e/` dependencies installed
+- Playwright Chromium installed
+- STRATA listening locally with an OpenAI-compatible chat-completions endpoint
+- model available as `qwen3.8-flash-next-coder-iq1_m` (or override it)
+
+The existing E2E setup remains authoritative:
+
+```powershell
+cd e2e
+npm install
+npx playwright install chromium
+```
+
+## Default local endpoints
+
+The Qwen UI Tester deliberately uses a dedicated application port so it does
+not silently test an unrelated Visual Studio/dev-server process:
+
+```text
+LacunaAuto under test: http://127.0.0.1:5132/
+STRATA:              http://127.0.0.1:8080
+STRATA endpoint:     /v1/chat/completions
+```
+
+If something is already responding on the app port, the runner stops rather
+than trusting it. `--reuse-running-app` exists only for an explicit,
+non-default case where the caller has already verified that the server is
+serving the exact revision under review.
+
+## First smoke run
+
+Run from anywhere inside a **clean** checkout of the branch/revision being
+reviewed:
+
+```powershell
+dotnet run --project tools/LacunaAuto.QwenUiTester -- `
+  --base main `
+  --head HEAD `
+  --scope "Review the current browsing UI without changing application code." `
+  --acceptance "Regression suite passes; changed UI behavior has evidence; report anything not covered."
+```
+
+The runner verifies that `--head` resolves to the current checkout. By default
+it also refuses a dirty working tree because an uncommitted tree cannot be
+identified reliably by the reported SHA.
+
+## Configuration
+
+CLI options:
+
+| Option | Default |
+| --- | --- |
+| `--base` | `main` |
+| `--head` | `HEAD` |
+| `--scope` | generic current-UI review |
+| `--acceptance` | evidence-backed regression/review |
+| `--base-url` | `http://127.0.0.1:5132/` |
+| `--strata-url` | `http://127.0.0.1:8080` |
+| `--model` | `qwen3.8-flash-next-coder-iq1_m` |
+| `--max-tokens` | `24000` |
+| `--max-tool-turns` | `16` |
+| `--skip-regression` | off |
+| `--allow-dirty` | off |
+| `--reuse-running-app` | off |
+
+Environment-variable alternatives:
+
+```text
+E2E_BASE_URL
+STRATA_BASE_URL
+STRATA_MODEL
+STRATA_API_KEY
+QWEN_UI_MAX_TOKENS
+QWEN_UI_MAX_TOOL_TURNS
+```
+
+`STRATA_API_KEY` is optional and is sent as a Bearer token only when present.
+
+## Tools exposed to Qwen
+
+The model does **not** receive an arbitrary PowerShell/shell tool.
+
+It receives only:
+
+- `read_file` — bounded UTF-8 repository text files;
+- `search_text` — exact `git grep` search;
+- `git_diff` — the locked `base...head` review diff;
+- `run_playwright` — existing files under `e2e/specs/*.ts` only;
+- `read_e2e_report` — the preserved full regression JSON report;
+- `http_get` — GET routes under the configured application origin.
+
+The full regression report is copied before any focused rerun so a later
+targeted Playwright execution cannot overwrite the evidence from the initial
+full suite.
+
+## Output
+
+Generated files live under the already-ignored `e2e/e2e-artifacts/` folder:
+
+```text
+qwen-full-regression-report.json
+qwen-focused-<timestamp>.json
+qwen-ui-review.md
+qwen-ui-review.json
+```
+
+The model report must return one of:
+
+```text
+Result: PASS
+Result: FAIL
+Result: BLOCKED
+```
+
+A normal regression failure cannot be promoted to PASS by the model.
+
+Process exit codes:
+
+| Exit | Meaning |
+| ---: | --- |
+| 0 | PASS |
+| 2 | FAIL |
+| 3 | BLOCKED |
+| 10 | runner/integration failure |
+
+## Next stage after local verification
+
+After this local loop is proven against the real STRATA installation:
+
+1. add an isolated GitHub self-hosted runner;
+2. checkout the exact PR head SHA;
+3. pass PR scope/acceptance criteria to this tool;
+4. publish `qwen-ui-review.md` as a PR comment;
+5. expose PASS / FAIL / BLOCKED as a GitHub check;
+6. only then consider controlled temporary adaptive Playwright probes.
