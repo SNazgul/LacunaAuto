@@ -1,17 +1,17 @@
 ---
 name: strata-qwen-coder-ui-automation
-description: Plan, write, run, and review browser UI automation for implemented LacunaAuto features. Use only in GitHub Copilot sessions explicitly using Strata Qwen Coder when UI testing is requested. Leave inactive for other models or an unknown active model.
+description: Plan, write, run, and review browser UI automation for implemented LacunaAuto features. Use only when the active model is explicitly identified as Strata Qwen Coder, either in GitHub Copilot or through the LacunaAuto local Qwen UI Tester runner/API. Leave inactive for other models or an unknown active model.
 ---
 
 # UI automation for Strata Qwen Coder
 
 ## Applicability and responsibility
 
-Use this skill only when the assistant is GitHub Copilot and the active model is explicitly identified as **Strata Qwen Coder** by session metadata or the user. Otherwise leave it inactive; do not infer model identity from behavior.
+Use this skill only when the active model is explicitly identified as **Strata Qwen Coder** and it is running either in an authorized GitHub Copilot session or through the LacunaAuto local Qwen UI Tester runner/API. Model identity must be supplied explicitly by session metadata, runner metadata, or the user. Otherwise leave this skill inactive; do not infer model identity from behavior.
 
 Own UI test planning, test maintenance, browser execution, failure investigation, and evidence-based reporting for the requested functionality. A testing assignment authorizes relevant test changes, not application fixes, redesigns, or new product features. Report product defects with reproduction steps; change application code only when the user also authorizes fixes.
 
-Keep this skill inside its Copilot skill directory. Do not advertise or register it in general project documents or shared instructions unless explicitly requested. Follow the task's repository rules for ordinary implementation documentation and handoffs without adding skill-adoption notes.
+Keep this skill inside its current skill directory. Do not advertise or register it in general project documents or shared instructions unless explicitly requested. Follow the task's repository rules for ordinary implementation documentation and handoffs without adding skill-adoption notes.
 
 ## 1. Establish the test scope
 
