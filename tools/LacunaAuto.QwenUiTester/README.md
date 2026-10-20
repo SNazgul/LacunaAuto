@@ -33,7 +33,7 @@ remains unverified.
 - .NET SDK 10
 - Node/npm and the existing `e2e/` dependencies installed
 - Playwright Chromium installed
-- STRATA listening locally with an OpenAI-compatible chat-completions endpoint
+- access to a STRATA-hosted OpenAI-compatible chat-completions endpoint
 - model available as `qwen3.8-flash-next-coder-iq1_m` (or override it)
 
 The existing E2E setup remains authoritative:
@@ -44,16 +44,18 @@ npm install
 npx playwright install chromium
 ```
 
-## Default local endpoints
+## Endpoints
 
-The Qwen UI Tester deliberately uses a dedicated application port so it does
+The Qwen UI Tester deliberately uses a dedicated local application port so it does
 not silently test an unrelated Visual Studio/dev-server process:
 
 ```text
 LacunaAuto under test: http://127.0.0.1:5132/
-STRATA:              http://127.0.0.1:8080
-STRATA endpoint:     /v1/chat/completions
 ```
+
+The STRATA endpoint is remote/configurable and is **not committed to the repository**.
+Provide the full Chat Completions URL (including `/v1/chat/completions`) through
+`STRATA_CHAT_COMPLETIONS_URL` or `--strata-url`.
 
 If something is already responding on the app port, the runner stops rather
 than trusting it. `--reuse-running-app` exists only for an explicit,
@@ -66,6 +68,9 @@ Run from anywhere inside a **clean** checkout of the branch/revision being
 reviewed:
 
 ```powershell
+$env:STRATA_CHAT_COMPLETIONS_URL = "https://<your-strata-host>/v1/chat/completions"
+$env:STRATA_API_KEY = [System.Net.NetworkCredential]::new("", (Read-Host "STRATA API key" -AsSecureString)).Password
+
 dotnet run --project tools/LacunaAuto.QwenUiTester -- `
   --base main `
   --head HEAD `
@@ -88,9 +93,10 @@ CLI options:
 | `--scope` | generic current-UI review |
 | `--acceptance` | evidence-backed regression/review |
 | `--base-url` | `http://127.0.0.1:5132/` |
-| `--strata-url` | `http://127.0.0.1:8080` |
+| `--strata-url` | required full Chat Completions endpoint URL |
 | `--model` | `qwen3.8-flash-next-coder-iq1_m` |
-| `--max-tokens` | `24000` |
+| `--reasoning-effort` | `high` |
+| `--max-tokens` | `48000` |
 | `--max-tool-turns` | `16` |
 | `--skip-regression` | off |
 | `--allow-dirty` | off |
@@ -100,14 +106,32 @@ Environment-variable alternatives:
 
 ```text
 E2E_BASE_URL
-STRATA_BASE_URL
+STRATA_CHAT_COMPLETIONS_URL
 STRATA_MODEL
 STRATA_API_KEY
+STRATA_REASONING_EFFORT
 QWEN_UI_MAX_TOKENS
 QWEN_UI_MAX_TOOL_TURNS
 ```
 
-`STRATA_API_KEY` is optional and is sent as a Bearer token only when present.
+`STRATA_API_KEY` is never written to repository files. When present, the runner sends it as `Authorization: Bearer <key>`, matching VS Code Custom Endpoint behavior for Chat Completions endpoints unless custom request headers are configured.
+
+For an interactive local run, avoid putting the secret itself in PowerShell history:
+
+```powershell
+$env:STRATA_API_KEY = [System.Net.NetworkCredential]::new(
+  "",
+  (Read-Host "STRATA API key" -AsSecureString)
+).Password
+```
+
+After the run:
+
+```powershell
+Remove-Item Env:STRATA_API_KEY
+```
+
+The runner sends top-level `reasoning_effort` for this Chat Completions model. The default is `high`, matching the current Strata Qwen Coder configuration.
 
 ## Tools exposed to Qwen
 
