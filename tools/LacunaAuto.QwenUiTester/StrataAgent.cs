@@ -43,6 +43,7 @@ internal sealed class StrataAgent : IDisposable
                 ["tools"] = _tools.GetDefinitions(),
                 ["tool_choice"] = "auto",
                 ["temperature"] = 0.1,
+                ["reasoning_effort"] = _options.ReasoningEffort,
                 ["max_tokens"] = _options.MaxTokens,
                 ["stream"] = false,
             };
@@ -53,7 +54,7 @@ internal sealed class StrataAgent : IDisposable
                 "application/json");
 
             using var response = await _httpClient.PostAsync(
-                $"{_options.StrataBaseUrl}/v1/chat/completions",
+                _options.ChatCompletionsUrl,
                 content);
 
             var responseText = await response.Content.ReadAsStringAsync();
