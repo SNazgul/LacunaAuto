@@ -6,9 +6,10 @@ internal sealed record RunnerOptions(
     string Scope,
     string Acceptance,
     string AppBaseUrl,
-    string StrataBaseUrl,
+    string ChatCompletionsUrl,
     string Model,
     string? ApiKey,
+    string ReasoningEffort,
     int MaxTokens,
     int MaxToolTurns,
     bool SkipRegression,
@@ -16,8 +17,8 @@ internal sealed record RunnerOptions(
     bool ReuseRunningApp)
 {
     private const string DefaultAppBaseUrl = "http://127.0.0.1:5132/";
-    private const string DefaultStrataBaseUrl = "http://127.0.0.1:8080";
     private const string DefaultModel = "qwen3.8-flash-next-coder-iq1_m";
+    private const string DefaultReasoningEffort = "high";
 
     public static RunnerOptions Parse(string[] args)
     {
@@ -44,12 +45,35 @@ internal sealed record RunnerOptions(
         }
 
         var maxTokens = ParsePositiveInt(
-            Get(values, "max-tokens", Environment.GetEnvironmentVariable("QWEN_UI_MAX_TOKENS") ?? "24000"),
+            Get(values, "max-tokens", Environment.GetEnvironmentVariable("QWEN_UI_MAX_TOKENS") ?? "48000"),
             "max-tokens");
 
         var maxToolTurns = ParsePositiveInt(
             Get(values, "max-tool-turns", Environment.GetEnvironmentVariable("QWEN_UI_MAX_TOOL_TURNS") ?? "16"),
             "max-tool-turns");
+
+        var chatCompletionsUrl = GetRequired(
+            values,
+            "strata-url",
+            Environment.GetEnvironmentVariable("STRATA_CHAT_COMPLETIONS_URL"));
+
+        if (!Uri.TryCreate(chatCompletionsUrl, UriKind.Absolute, out var endpointUri) ||
+            endpointUri.Scheme is not ("http" or "https"))
+        {
+            throw new ArgumentException(
+                "--strata-url / STRATA_CHAT_COMPLETIONS_URL must be an absolute HTTP(S) URL to the full chat-completions endpoint.");
+        }
+
+        var reasoningEffort = Get(
+            values,
+            "reasoning-effort",
+            Environment.GetEnvironmentVariable("STRATA_REASONING_EFFORT") ?? DefaultReasoningEffort);
+
+        if (reasoningEffort is not ("none" or "low" or "medium" or "high"))
+        {
+            throw new ArgumentException(
+                "--reasoning-effort must be one of: none, low, medium, high.");
+        }
 
         return new RunnerOptions(
             BaseRef: Get(values, "base", "main"),
@@ -57,9 +81,10 @@ internal sealed record RunnerOptions(
             Scope: Get(values, "scope", "Review the current UI implementation changes."),
             Acceptance: Get(values, "acceptance", "Run the relevant regression coverage, inspect the changed UI behavior, and report only evidence-backed conclusions."),
             AppBaseUrl: EnsureTrailingSlash(Get(values, "base-url", Environment.GetEnvironmentVariable("E2E_BASE_URL") ?? DefaultAppBaseUrl)),
-            StrataBaseUrl: Get(values, "strata-url", Environment.GetEnvironmentVariable("STRATA_BASE_URL") ?? DefaultStrataBaseUrl).TrimEnd('/'),
+            ChatCompletionsUrl: chatCompletionsUrl,
             Model: Get(values, "model", Environment.GetEnvironmentVariable("STRATA_MODEL") ?? DefaultModel),
             ApiKey: Environment.GetEnvironmentVariable("STRATA_API_KEY"),
+            ReasoningEffort: reasoningEffort,
             MaxTokens: maxTokens,
             MaxToolTurns: maxToolTurns,
             SkipRegression: flags.Contains("skip-regression"),
@@ -73,6 +98,21 @@ internal sealed record RunnerOptions(
         string fallback)
     {
         return values.TryGetValue(name, out var value) ? value : fallback;
+    }
+
+    private static string GetRequired(
+        IReadOnlyDictionary<string, string> values,
+        string name,
+        string? fallback)
+    {
+        if (values.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value))
+            return value;
+
+        if (!string.IsNullOrWhiteSpace(fallback))
+            return fallback;
+
+        throw new ArgumentException(
+            $"Missing --{name}. Supply the full STRATA chat-completions endpoint via --{name} or STRATA_CHAT_COMPLETIONS_URL.");
     }
 
     private static int ParsePositiveInt(string value, string name)
