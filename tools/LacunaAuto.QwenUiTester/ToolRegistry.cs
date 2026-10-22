@@ -272,6 +272,8 @@ internal sealed class ToolRegistry
             _e2eDirectory,
             "playwright");
 
+        Console.WriteLine($"Playwright  : focused spec {normalizedSpec}{(string.IsNullOrWhiteSpace(grep) ? string.Empty : $" / grep={grep}")}");
+
         var result = await ProcessRunner.RunAsync(
             playwright,
             arguments,
@@ -284,6 +286,7 @@ internal sealed class ToolRegistry
 
         PreserveLatestFocusedReport();
 
+        Console.WriteLine($"Playwright  : focused spec exit {result.ExitCode}, timeout={result.TimedOut}.");
         return Limit(FormatProcessResult(result), MaxToolOutputCharacters);
     }
 
