@@ -86,6 +86,17 @@ internal static class Program
 
             Console.WriteLine($"Regression : exit {regression.ExitCode}, timeout={regression.TimedOut}");
 
+            if (options.RegressionOnly)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Regression output:");
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine(Limit(regression.CombinedOutput, 40_000).TrimEnd());
+                Console.WriteLine("----------------------------------------");
+
+                return regression.ExitCode == 0 && !regression.TimedOut ? 0 : 2;
+            }
+
             if (regression.ExitCode != 0 || regression.TimedOut)
             {
                 Console.WriteLine();
