@@ -46,7 +46,7 @@ internal static class Program
                 $"{options.BaseRef}...{options.HeadRef}");
 
             var e2eDirectory = Path.Combine(repositoryRoot, "e2e");
-            var artifactDirectory = Path.Combine(e2eDirectory, "e2e-artifacts");
+            var artifactDirectory = Path.Combine(e2eDirectory, "qwen-reviews");
             Directory.CreateDirectory(artifactDirectory);
 
             var fullRegressionReportPath = Path.Combine(
