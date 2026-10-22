@@ -1,69 +1,61 @@
-Prepared the first local LacunaAuto Qwen UI Tester integration stage on branch `agents/qwen-ui-tester-skills`.
+Prepared the first LacunaAuto Qwen UI Tester integration stage on branch `agents/qwen-ui-tester-skills`.
 
-What changed
+Latest addition: dedicated STRATA smoke mode
+- Added `--strata-smoke`.
+- This mode does not start LacunaAuto.Web or Playwright.
+- It validates the remote HTTPS endpoint, Bearer authentication, model selection, configured reasoning effort, a forced function/tool call, the tool-result round trip, and the final model response.
+- Expected success marker: `LACUNA_QWEN_SMOKE_OK`.
+- `STRATA_API_KEY` remains environment-only and is never written to repository files.
 
-1. Updated the two Strata Qwen Coder skills
-- `.github/skills/strata-qwen-coder-ui-automation/SKILL.md`
-- `.github/skills/strata-qwen-coder-verification/SKILL.md`
+Runner configuration now matches the supplied custom-endpoint model:
+- full configurable Chat Completions URL via `STRATA_CHAT_COMPLETIONS_URL` / `--strata-url`;
+- model `qwen3.8-flash-next-coder-iq1_m`;
+- `reasoning_effort=high` by default;
+- `max_tokens=48000` by default;
+- Bearer authorization when `STRATA_API_KEY` is present.
 
-They now apply when Strata Qwen Coder is explicitly identified either in an authorized GitHub Copilot session or through the LacunaAuto local Qwen UI Tester runner/API. They remain inactive for other/unknown models.
-
-2. Added a standalone .NET 10 local runner under:
-- `tools/LacunaAuto.QwenUiTester/`
-
-The runner:
-- locks review to the checked-out Git SHA and refuses a mismatched `--head`;
+The full UI-review runner still:
+- locks review to the checked-out Git SHA;
 - refuses a dirty working tree by default;
-- starts its own LacunaAuto.Web instance on `http://127.0.0.1:5132/`;
-- refuses to trust an already-running app unless `--reuse-running-app` is explicit;
-- runs the normal Playwright regression suite before contacting Qwen;
-- preserves the full JSON regression report before focused reruns;
-- calls STRATA through the OpenAI-compatible `/v1/chat/completions` endpoint;
-- explicitly identifies the active model/context so the two Qwen skills apply;
-- runs a tool-call loop with no arbitrary shell/PowerShell access;
-- writes structured review artifacts under ignored `e2e/e2e-artifacts/`;
-- returns process exit 0/2/3 for PASS/FAIL/BLOCKED and 10 for runner/integration failure.
+- starts a dedicated LacunaAuto.Web instance;
+- runs the normal Playwright regression suite first;
+- preserves the full regression JSON report;
+- gives Qwen only constrained read/verification tools;
+- writes PASS / FAIL / BLOCKED review artifacts under ignored `e2e/e2e-artifacts/`.
 
-Tools exposed to Qwen are deliberately constrained:
-- `read_file`
-- `search_text`
-- `git_diff`
-- `run_playwright` for existing `e2e/specs/*.ts` only
-- `read_e2e_report`
-- `http_get`
+Runtime validation is still required on the user's Windows/.NET/STRATA environment. Do not merge until build and STRATA smoke mode succeed.
 
-The current runner cannot create adaptive Playwright probes yet. The model is required to report that behavior as Not verified rather than invent coverage.
+First validation steps:
 
-3. Added:
-- `tools/LacunaAuto.QwenUiTester/README.md`
-
-It documents prerequisites, default endpoints, CLI/environment configuration, evidence files, exit codes, and the next GitHub self-hosted-runner stage.
-
-Intentionally not changed
-- No GitHub Actions/self-hosted runner workflow yet.
-- No PR-comment automation yet.
-- No arbitrary command execution tool for Qwen.
-- No application/backend/UI behavior changes.
-- No changes to `AGENTS.md` or canonical product/current-work docs.
-- The runner project has not yet been added to `LacunaAuto.sln`; first it should be built and exercised against the user's actual STRATA API.
-
-Validation status
-- Repository diff and implementation structure reviewed.
-- Runtime validation is still required on the user's Windows/.NET/STRATA environment because this environment does not have the .NET SDK or access to the user's local STRATA instance.
-- Do not merge this branch until the local build and smoke run succeed.
-
-Suggested first validation:
 ```powershell
 git switch agents/qwen-ui-tester-skills
 git pull
-dotnet build tools/LacunaAuto.QwenUiTester/LacunaAuto.QwenUiTester.csproj
+
+dotnet build tools\LacunaAuto.QwenUiTester\LacunaAuto.QwenUiTester.csproj
 ```
 
-Then, with STRATA/model running and the E2E dependencies installed:
+Then configure the secret only in the current PowerShell process:
+
 ```powershell
-dotnet run --project tools/LacunaAuto.QwenUiTester -- `
-  --base main `
-  --head HEAD `
-  --scope "Smoke-test the local Qwen UI review integration without modifying application code." `
-  --acceptance "The normal Playwright regression suite runs, Qwen can use the constrained tools, and the runner produces a structured PASS/FAIL/BLOCKED review."
+$env:STRATA_CHAT_COMPLETIONS_URL = "https://194.53.196.226/v1/chat/completions"
+$env:STRATA_API_KEY = [System.Net.NetworkCredential]::new(
+    "",
+    (Read-Host "STRATA API key" -AsSecureString)
+).Password
+```
+
+Run only the transport/auth/tool-calling smoke test:
+
+```powershell
+dotnet run --project tools\LacunaAuto.QwenUiTester -- --strata-smoke
+```
+
+Expected successful tail:
+
+```text
+Transport  : OK
+Auth       : OK
+Tool call  : OK
+Tool result: OK
+Final      : LACUNA_QWEN_SMOKE_OK
 ```
