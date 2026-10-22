@@ -113,3 +113,21 @@ Fix:
 - Focused Playwright execution now checks that the preserved full regression report still exists after each run.
 
 This finding was a valid runner/integration defect, not an application UI defect or false positive. Re-run the full review and confirm Qwen can read the baseline report both before and after focused reruns.
+
+
+## Tool-budget checkpoint
+
+A subsequent full review verified the report-preservation fix: `read_e2e_report` remained available after focused Playwright reruns.
+
+The run then exposed a separate orchestration issue:
+- Qwen kept exploring until all 16 tool turns were consumed;
+- several focused runs used CLI-looking strings in the `grep` field even though that field is intended only for test-title matching;
+- the runner treated exhaustion of the tool-turn budget as an integration failure instead of asking for a final report.
+
+Fix:
+- focused Playwright `grep` is now validated as a short test-title regex and rejects CLI-like values;
+- exact duplicate focused runs are rejected;
+- each review has a bounded focused Playwright budget;
+- after the configured tool-turn budget is exhausted, the runner makes one final no-tools, low-reasoning request and returns that structured review instead of failing immediately.
+
+Runtime re-verification is still required on Windows.
