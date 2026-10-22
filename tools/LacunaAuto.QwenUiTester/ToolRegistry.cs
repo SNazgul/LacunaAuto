@@ -7,6 +7,7 @@ namespace LacunaAuto.QwenUiTester;
 internal sealed class ToolRegistry
 {
     private const int MaxToolOutputCharacters = 80_000;
+    private const int MaxFocusedPlaywrightRuns = 8;
 
     private readonly string _repositoryRoot;
     private readonly string _baseRef;
@@ -14,6 +15,8 @@ internal sealed class ToolRegistry
     private readonly string _appBaseUrl;
     private readonly string _e2eDirectory;
     private readonly string _fullRegressionReportPath;
+    private readonly HashSet<string> _focusedPlaywrightRuns = new(StringComparer.Ordinal);
+    private int _focusedPlaywrightRunCount;
 
     public ToolRegistry(
         string repositoryRoot,
@@ -105,7 +108,7 @@ internal sealed class ToolRegistry
                         ["grep"] = new JsonObject
                         {
                             ["type"] = "string",
-                            ["description"] = "Optional Playwright --grep pattern.",
+                            ["description"] = "Optional regular expression matched only against Playwright test titles. This is not a place for CLI flags; values beginning with '-' are rejected.",
                         },
                     },
                     ["required"] = new JsonArray("spec"),
@@ -245,6 +248,18 @@ internal sealed class ToolRegistry
     {
         var normalizedSpec = NormalizeGitPath(spec);
 
+        if (!string.IsNullOrWhiteSpace(grep))
+        {
+            if (grep.StartsWith("-", StringComparison.Ordinal) ||
+                grep.Contains('\r') ||
+                grep.Contains('\n') ||
+                grep.Length > 200)
+            {
+                throw new ArgumentException(
+                    "grep must be a short Playwright test-title regular expression, not a CLI option or command fragment.");
+            }
+        }
+
         if (!normalizedSpec.StartsWith("specs/", StringComparison.Ordinal) ||
             normalizedSpec.Contains("..", StringComparison.Ordinal) ||
             !normalizedSpec.EndsWith(".ts", StringComparison.OrdinalIgnoreCase))
@@ -255,6 +270,19 @@ internal sealed class ToolRegistry
         var fullSpecPath = Path.Combine(_e2eDirectory, normalizedSpec.Replace('/', Path.DirectorySeparatorChar));
         if (!File.Exists(fullSpecPath))
             throw new FileNotFoundException("Playwright spec was not found.", normalizedSpec);
+
+        var runKey = $"{normalizedSpec}\n{grep ?? string.Empty}";
+        if (!_focusedPlaywrightRuns.Add(runKey))
+        {
+            return "TOOL_ERROR: This exact focused Playwright run was already executed during this review. Reuse the existing evidence.";
+        }
+
+        if (_focusedPlaywrightRunCount >= MaxFocusedPlaywrightRuns)
+        {
+            return $"TOOL_ERROR: Focused Playwright budget exhausted ({MaxFocusedPlaywrightRuns} runs). Use the existing regression/focused evidence and finalize the review.";
+        }
+
+        _focusedPlaywrightRunCount++;
 
         var arguments = new List<string>
         {
