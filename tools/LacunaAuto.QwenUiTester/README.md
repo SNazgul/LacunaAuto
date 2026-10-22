@@ -166,7 +166,7 @@ It receives only:
 - `read_file` — bounded UTF-8 repository text files;
 - `search_text` — exact `git grep` search;
 - `git_diff` — the locked `base...head` review diff;
-- `run_playwright` — existing files under `e2e/specs/*.ts` only;
+- `run_playwright` — existing files under `e2e/specs/*.ts` only; optional `grep` is a test-title regex only, duplicate runs are rejected, and each review has a bounded focused-run budget;
 - `read_e2e_report` — the preserved full regression JSON report;
 - `http_get` — GET routes under the configured application origin.
 
@@ -184,6 +184,8 @@ qwen-focused-<timestamp>.json
 qwen-ui-review.md
 qwen-ui-review.json
 ```
+
+If Qwen consumes the configured tool-turn budget without returning a final answer, the runner issues one final no-tools, low-reasoning request using the evidence already collected instead of failing the whole review.
 
 The model report must return one of:
 
