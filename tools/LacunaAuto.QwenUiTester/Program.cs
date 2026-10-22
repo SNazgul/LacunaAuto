@@ -12,6 +12,10 @@ internal static class Program
         try
         {
             var options = RunnerOptions.Parse(args);
+
+            if (options.StrataSmoke)
+                return await RunStrataSmokeAsync(options);
+
             var repositoryRoot = FindRepositoryRoot(Environment.CurrentDirectory);
 
             var currentHead = await GitAsync(repositoryRoot, "rev-parse", "HEAD");
@@ -164,6 +168,33 @@ internal static class Program
             Console.Error.WriteLine($"Qwen UI Tester failed: {exception.Message}");
             return 10;
         }
+    }
+
+    private static async Task<int> RunStrataSmokeAsync(RunnerOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        {
+            throw new InvalidOperationException(
+                "STRATA_API_KEY is not configured. Set it in the process environment before running --strata-smoke.");
+        }
+
+        Console.WriteLine("STRATA smoke test");
+        Console.WriteLine($"Endpoint   : {options.ChatCompletionsUrl}");
+        Console.WriteLine($"Model      : {options.Model}");
+        Console.WriteLine($"Reasoning  : {options.ReasoningEffort}");
+        Console.WriteLine("Auth       : Authorization: Bearer <configured>");
+        Console.WriteLine();
+
+        using var agent = new StrataAgent(options);
+        var response = await agent.RunSmokeAsync();
+
+        Console.WriteLine("Transport  : OK");
+        Console.WriteLine("Auth       : OK");
+        Console.WriteLine("Tool call  : OK");
+        Console.WriteLine("Tool result: OK");
+        Console.WriteLine($"Final      : {response}");
+
+        return 0;
     }
 
     private static async Task<ProcessResult> RunFullRegressionAsync(
