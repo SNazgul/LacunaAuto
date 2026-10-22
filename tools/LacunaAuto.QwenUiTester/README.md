@@ -64,13 +64,35 @@ serving the exact revision under review.
 
 ## First smoke run
 
-Run from anywhere inside a **clean** checkout of the branch/revision being
-reviewed:
+Before starting LacunaAuto.Web or Playwright, validate only the remote STRATA
+transport, Caddy Bearer authentication, model selection, reasoning setting, and
+the complete tool-call round trip:
 
 ```powershell
 $env:STRATA_CHAT_COMPLETIONS_URL = "https://<your-strata-host>/v1/chat/completions"
 $env:STRATA_API_KEY = [System.Net.NetworkCredential]::new("", (Read-Host "STRATA API key" -AsSecureString)).Password
 
+dotnet run --project tools/LacunaAuto.QwenUiTester -- --strata-smoke
+```
+
+A successful smoke test prints:
+
+```text
+Transport  : OK
+Auth       : OK
+Tool call  : OK
+Tool result: OK
+Final      : LACUNA_QWEN_SMOKE_OK
+```
+
+This mode deliberately does not start the Web app or Playwright.
+
+## First full UI review run
+
+After the STRATA smoke test passes, run from anywhere inside a **clean**
+checkout of the branch/revision being reviewed:
+
+```powershell
 dotnet run --project tools/LacunaAuto.QwenUiTester -- `
   --base main `
   --head HEAD `
@@ -98,6 +120,7 @@ CLI options:
 | `--reasoning-effort` | `high` |
 | `--max-tokens` | `48000` |
 | `--max-tool-turns` | `16` |
+| `--strata-smoke` | off; test only STRATA auth/tool calling |
 | `--skip-regression` | off |
 | `--allow-dirty` | off |
 | `--reuse-running-app` | off |
