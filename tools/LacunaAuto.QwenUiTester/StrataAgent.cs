@@ -367,7 +367,8 @@ internal sealed class StrataAgent : IDisposable
         if (node is null)
             return null;
 
-        return node.GetValueKind() == JsonValueKind.Number && node.TryGetValue<int>(out var value)
+        return node is JsonValue jsonValue &&
+               jsonValue.TryGetValue<int>(out var value)
             ? value
             : null;
     }
