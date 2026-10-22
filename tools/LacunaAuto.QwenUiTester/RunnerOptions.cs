@@ -15,7 +15,8 @@ internal sealed record RunnerOptions(
     bool SkipRegression,
     bool AllowDirty,
     bool ReuseRunningApp,
-    bool StrataSmoke)
+    bool StrataSmoke,
+    bool RegressionOnly)
 {
     private const string DefaultAppBaseUrl = "http://127.0.0.1:5132/";
     private const string DefaultModel = "qwen3.8-flash-next-coder-iq1_m";
@@ -33,7 +34,7 @@ internal sealed record RunnerOptions(
                 throw new ArgumentException($"Unexpected argument: {argument}");
 
             var name = argument[2..];
-            if (name is "skip-regression" or "allow-dirty" or "reuse-running-app" or "strata-smoke")
+            if (name is "skip-regression" or "allow-dirty" or "reuse-running-app" or "strata-smoke" or "regression-only")
             {
                 flags.Add(name);
                 continue;
@@ -91,7 +92,8 @@ internal sealed record RunnerOptions(
             SkipRegression: flags.Contains("skip-regression"),
             AllowDirty: flags.Contains("allow-dirty"),
             ReuseRunningApp: flags.Contains("reuse-running-app"),
-            StrataSmoke: flags.Contains("strata-smoke"));
+            StrataSmoke: flags.Contains("strata-smoke"),
+            RegressionOnly: flags.Contains("regression-only"));
     }
 
     private static string Get(
