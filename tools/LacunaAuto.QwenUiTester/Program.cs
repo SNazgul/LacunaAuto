@@ -224,8 +224,12 @@ internal static class Program
     {
         Console.WriteLine("Running full Playwright regression suite...");
 
+        var playwright = ProcessRunner.ResolveLocalNodeTool(
+            e2eDirectory,
+            "playwright");
+
         return await ProcessRunner.RunAsync(
-            "npm",
+            playwright,
             ["test"],
             e2eDirectory,
             TimeSpan.FromMinutes(8),
