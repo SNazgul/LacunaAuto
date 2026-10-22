@@ -176,7 +176,7 @@ full suite.
 
 ## Output
 
-Generated files live under the already-ignored `e2e/e2e-artifacts/` folder:
+Generated Qwen review files live under the ignored `e2e/qwen-reviews/` folder, which is deliberately separate from Playwright's cleaned `e2e/e2e-artifacts/` output directory:
 
 ```text
 qwen-full-regression-report.json
