@@ -1,16 +1,19 @@
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace LacunaAuto.QwenUiTester;
 
 internal sealed class StrataAgent : IDisposable
 {
+    private const string SmokeToken = "LACUNA_QWEN_SMOKE";
+
     private readonly RunnerOptions _options;
-    private readonly ToolRegistry _tools;
+    private readonly ToolRegistry? _tools;
     private readonly HttpClient _httpClient;
 
-    public StrataAgent(RunnerOptions options, ToolRegistry tools)
+    public StrataAgent(RunnerOptions options, ToolRegistry? tools = null)
     {
         _options = options;
         _tools = tools;
@@ -28,6 +31,9 @@ internal sealed class StrataAgent : IDisposable
 
     public async Task<string> RunAsync(string systemPrompt, string userPrompt)
     {
+        if (_tools is null)
+            throw new InvalidOperationException("The UI review agent requires a tool registry.");
+
         var messages = new List<JsonObject>
         {
             Message("system", systemPrompt),
@@ -36,57 +42,15 @@ internal sealed class StrataAgent : IDisposable
 
         for (var turn = 1; turn <= _options.MaxToolTurns; turn++)
         {
-            var payload = new JsonObject
-            {
-                ["model"] = _options.Model,
-                ["messages"] = new JsonArray(messages.Select(message => message.DeepClone()).ToArray()),
-                ["tools"] = _tools.GetDefinitions(),
-                ["tool_choice"] = "auto",
-                ["temperature"] = 0.1,
-                ["reasoning_effort"] = _options.ReasoningEffort,
-                ["max_tokens"] = _options.MaxTokens,
-                ["stream"] = false,
-            };
-
-            using var content = new StringContent(
-                payload.ToJsonString(),
-                Encoding.UTF8,
-                "application/json");
-
-            using var response = await _httpClient.PostAsync(
-                _options.ChatCompletionsUrl,
-                content);
-
-            var responseText = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new InvalidOperationException(
-                    $"STRATA returned HTTP {(int)response.StatusCode}: {responseText}");
-            }
-
-            var root = JsonNode.Parse(responseText)?.AsObject()
-                ?? throw new InvalidOperationException("STRATA returned invalid JSON.");
-
-            var choice = root["choices"]?[0]?.AsObject()
-                ?? throw new InvalidOperationException("STRATA response contains no choices.");
-
-            var responseMessage = choice["message"]?.AsObject()
-                ?? throw new InvalidOperationException("STRATA response contains no assistant message.");
+            var responseMessage = await SendAsync(
+                messages,
+                _tools.GetDefinitions(),
+                JsonValue.Create("auto"));
 
             var assistantContent = GetStringOrNull(responseMessage["content"]);
             var toolCalls = responseMessage["tool_calls"]?.AsArray();
 
-            var assistantMessage = new JsonObject
-            {
-                ["role"] = "assistant",
-                ["content"] = assistantContent,
-            };
-
-            if (toolCalls is { Count: > 0 })
-                assistantMessage["tool_calls"] = toolCalls.DeepClone();
-
-            messages.Add(assistantMessage);
+            messages.Add(CloneAssistantMessage(responseMessage));
 
             if (toolCalls is not { Count: > 0 })
             {
@@ -113,13 +77,7 @@ internal sealed class StrataAgent : IDisposable
                 var functionArguments = GetArguments(function["arguments"]);
                 var toolResult = await _tools.ExecuteAsync(functionName, functionArguments);
 
-                messages.Add(new JsonObject
-                {
-                    ["role"] = "tool",
-                    ["tool_call_id"] = toolCallId,
-                    ["name"] = functionName,
-                    ["content"] = toolResult,
-                });
+                messages.Add(ToolMessage(toolCallId, functionName, toolResult));
             }
         }
 
@@ -127,9 +85,187 @@ internal sealed class StrataAgent : IDisposable
             $"STRATA exceeded the configured maximum of {_options.MaxToolTurns} tool turns.");
     }
 
+    public async Task<string> RunSmokeAsync()
+    {
+        var tools = new JsonArray
+        {
+            new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "smoke_echo",
+                    ["description"] = "Return the supplied smoke-test token unchanged.",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["token"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                            },
+                        },
+                        ["required"] = new JsonArray("token"),
+                        ["additionalProperties"] = false,
+                    },
+                },
+            },
+        };
+
+        var messages = new List<JsonObject>
+        {
+            Message(
+                "system",
+                "You are a transport/tool-calling smoke test. Follow the requested tool protocol exactly."),
+            Message(
+                "user",
+                $"Call smoke_echo exactly once with token '{SmokeToken}'. After receiving the tool result, reply with exactly LACUNA_QWEN_SMOKE_OK."),
+        };
+
+        var forcedToolChoice = new JsonObject
+        {
+            ["type"] = "function",
+            ["function"] = new JsonObject
+            {
+                ["name"] = "smoke_echo",
+            },
+        };
+
+        var firstResponse = await SendAsync(messages, tools, forcedToolChoice);
+        var toolCalls = firstResponse["tool_calls"]?.AsArray();
+
+        if (toolCalls is not { Count: 1 })
+        {
+            throw new InvalidOperationException(
+                $"STRATA smoke test expected exactly one tool call, but received {toolCalls?.Count ?? 0}.");
+        }
+
+        var toolCall = toolCalls[0]?.AsObject()
+            ?? throw new InvalidOperationException("STRATA smoke test returned an invalid tool call.");
+
+        var toolCallId = GetStringOrNull(toolCall["id"])
+            ?? throw new InvalidOperationException("STRATA smoke tool call is missing id.");
+
+        var function = toolCall["function"]?.AsObject()
+            ?? throw new InvalidOperationException("STRATA smoke tool call is missing function.");
+
+        var functionName = GetStringOrNull(function["name"]);
+        if (!string.Equals(functionName, "smoke_echo", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"STRATA smoke test expected tool smoke_echo but received '{functionName}'.");
+        }
+
+        using var argumentsDocument = JsonDocument.Parse(GetArguments(function["arguments"]));
+        var token = argumentsDocument.RootElement.TryGetProperty("token", out var tokenProperty)
+            ? tokenProperty.GetString()
+            : null;
+
+        if (!string.Equals(token, SmokeToken, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"STRATA smoke tool call returned unexpected token '{token}'.");
+        }
+
+        messages.Add(CloneAssistantMessage(firstResponse));
+        messages.Add(ToolMessage(
+            toolCallId,
+            "smoke_echo",
+            $"SMOKE_TOOL_OK:{SmokeToken}"));
+
+        var secondResponse = await SendAsync(
+            messages,
+            tools,
+            JsonValue.Create("none"));
+
+        var finalContent = GetStringOrNull(secondResponse["content"]);
+
+        if (string.IsNullOrWhiteSpace(finalContent) ||
+            !finalContent.Contains("LACUNA_QWEN_SMOKE_OK", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"STRATA smoke test tool round-trip succeeded, but the final model response was unexpected: {finalContent}");
+        }
+
+        return finalContent.Trim();
+    }
+
     public void Dispose()
     {
         _httpClient.Dispose();
+    }
+
+    private async Task<JsonObject> SendAsync(
+        IReadOnlyCollection<JsonObject> messages,
+        JsonArray tools,
+        JsonNode toolChoice)
+    {
+        var payload = new JsonObject
+        {
+            ["model"] = _options.Model,
+            ["messages"] = new JsonArray(messages.Select(message => message.DeepClone()).ToArray()),
+            ["tools"] = tools.DeepClone(),
+            ["tool_choice"] = toolChoice.DeepClone(),
+            ["temperature"] = 0.1,
+            ["reasoning_effort"] = _options.ReasoningEffort,
+            ["max_tokens"] = _options.MaxTokens,
+            ["stream"] = false,
+        };
+
+        using var content = new StringContent(
+            payload.ToJsonString(),
+            Encoding.UTF8,
+            "application/json");
+
+        using var response = await _httpClient.PostAsync(
+            _options.ChatCompletionsUrl,
+            content);
+
+        var responseText = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"STRATA returned HTTP {(int)response.StatusCode}: {responseText}");
+        }
+
+        var root = JsonNode.Parse(responseText)?.AsObject()
+            ?? throw new InvalidOperationException("STRATA returned invalid JSON.");
+
+        var choice = root["choices"]?[0]?.AsObject()
+            ?? throw new InvalidOperationException("STRATA response contains no choices.");
+
+        return choice["message"]?.AsObject()
+            ?? throw new InvalidOperationException("STRATA response contains no assistant message.");
+    }
+
+    private static JsonObject CloneAssistantMessage(JsonObject responseMessage)
+    {
+        var assistantMessage = new JsonObject
+        {
+            ["role"] = "assistant",
+            ["content"] = GetStringOrNull(responseMessage["content"]),
+        };
+
+        if (responseMessage["tool_calls"] is JsonArray toolCalls && toolCalls.Count > 0)
+            assistantMessage["tool_calls"] = toolCalls.DeepClone();
+
+        return assistantMessage;
+    }
+
+    private static JsonObject ToolMessage(
+        string toolCallId,
+        string functionName,
+        string content)
+    {
+        return new JsonObject
+        {
+            ["role"] = "tool",
+            ["tool_call_id"] = toolCallId,
+            ["name"] = functionName,
+            ["content"] = content,
+        };
     }
 
     private static JsonObject Message(string role, string content)
@@ -146,7 +282,7 @@ internal sealed class StrataAgent : IDisposable
         if (node is null)
             return null;
 
-        return node.GetValueKind() == System.Text.Json.JsonValueKind.String
+        return node.GetValueKind() == JsonValueKind.String
             ? node.GetValue<string>()
             : node.ToJsonString();
     }
@@ -156,7 +292,7 @@ internal sealed class StrataAgent : IDisposable
         if (node is null)
             return "{}";
 
-        return node.GetValueKind() == System.Text.Json.JsonValueKind.String
+        return node.GetValueKind() == JsonValueKind.String
             ? node.GetValue<string>()
             : node.ToJsonString();
     }
