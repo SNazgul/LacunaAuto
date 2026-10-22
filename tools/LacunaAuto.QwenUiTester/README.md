@@ -121,6 +121,7 @@ CLI options:
 | `--max-tokens` | `48000` |
 | `--max-tool-turns` | `16` |
 | `--strata-smoke` | off; test only STRATA auth/tool calling |
+| `--regression-only` | off; run Web + Playwright only, without STRATA |
 | `--skip-regression` | off |
 | `--allow-dirty` | off |
 | `--reuse-running-app` | off |
