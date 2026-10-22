@@ -286,6 +286,12 @@ internal sealed class ToolRegistry
 
         PreserveLatestFocusedReport();
 
+        if (!File.Exists(_fullRegressionReportPath))
+        {
+            throw new InvalidOperationException(
+                "The preserved full regression report disappeared after a focused Playwright run.");
+        }
+
         Console.WriteLine($"Playwright  : focused spec exit {result.ExitCode}, timeout={result.TimedOut}.");
         return Limit(FormatProcessResult(result), MaxToolOutputCharacters);
     }
