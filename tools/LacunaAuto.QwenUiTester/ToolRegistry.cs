@@ -259,7 +259,6 @@ internal sealed class ToolRegistry
         var arguments = new List<string>
         {
             "test",
-            "--",
             normalizedSpec,
         };
 
@@ -269,8 +268,12 @@ internal sealed class ToolRegistry
             arguments.Add(grep);
         }
 
+        var playwright = ProcessRunner.ResolveLocalNodeTool(
+            _e2eDirectory,
+            "playwright");
+
         var result = await ProcessRunner.RunAsync(
-            "npm",
+            playwright,
             arguments,
             _e2eDirectory,
             TimeSpan.FromMinutes(3),
