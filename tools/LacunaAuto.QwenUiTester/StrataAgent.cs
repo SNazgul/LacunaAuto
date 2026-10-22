@@ -44,26 +44,57 @@ internal sealed class StrataAgent : IDisposable
         {
             Console.WriteLine($"Qwen turn   : {turn}/{_options.MaxToolTurns} - sending request...");
 
-            var responseMessage = await SendAsync(
+            var response = await SendAsync(
                 messages,
                 _tools.GetDefinitions(),
                 JsonValue.Create("auto"));
 
             Console.WriteLine($"Qwen turn   : {turn}/{_options.MaxToolTurns} - response received.");
 
+            var responseMessage = response.Message;
             var assistantContent = GetStringOrNull(responseMessage["content"]);
             var toolCalls = responseMessage["tool_calls"]?.AsArray();
-
-            messages.Add(CloneAssistantMessage(responseMessage));
 
             if (toolCalls is not { Count: > 0 })
             {
                 if (string.IsNullOrWhiteSpace(assistantContent))
-                    throw new InvalidOperationException("STRATA returned neither content nor tool calls.");
+                {
+                    Console.WriteLine("Qwen        : empty final message; requesting concise recovery response.");
+
+                    var recoveryMessages = messages
+                        .Select(message => (JsonObject)message.DeepClone())
+                        .ToList();
+
+                    recoveryMessages.Add(Message(
+                        "user",
+                        "Return the final review now. Do not call tools. Do not include hidden reasoning. " +
+                        "Use the required Result: PASS/FAIL/BLOCKED first line and required sections only."));
+
+                    var recovery = await SendAsync(
+                        recoveryMessages,
+                        _tools.GetDefinitions(),
+                        JsonValue.Create("none"),
+                        reasoningEffort: "low",
+                        maxTokens: Math.Min(_options.MaxTokens, 8000));
+
+                    var recoveredContent = GetStringOrNull(recovery.Message["content"]);
+                    if (string.IsNullOrWhiteSpace(recoveredContent))
+                    {
+                        throw new InvalidOperationException(
+                            $"STRATA returned an empty assistant message and recovery also returned no content. " +
+                            $"Original finish_reason={response.FinishReason ?? "<null>"}, " +
+                            $"recovery finish_reason={recovery.FinishReason ?? "<null>"}.");
+                    }
+
+                    Console.WriteLine("Qwen        : final recovery response received.");
+                    return recoveredContent;
+                }
 
                 Console.WriteLine("Qwen        : final response received.");
                 return assistantContent;
             }
+
+            messages.Add(CloneAssistantMessage(responseMessage));
 
             foreach (var toolCallNode in toolCalls)
             {
@@ -140,7 +171,8 @@ internal sealed class StrataAgent : IDisposable
             },
         };
 
-        var firstResponse = await SendAsync(messages, tools, forcedToolChoice);
+        var firstEnvelope = await SendAsync(messages, tools, forcedToolChoice);
+        var firstResponse = firstEnvelope.Message;
         var toolCalls = firstResponse["tool_calls"]?.AsArray();
 
         if (toolCalls is not { Count: 1 })
@@ -182,10 +214,11 @@ internal sealed class StrataAgent : IDisposable
             "smoke_echo",
             $"SMOKE_TOOL_OK:{SmokeToken}"));
 
-        var secondResponse = await SendAsync(
+        var secondEnvelope = await SendAsync(
             messages,
             tools,
             JsonValue.Create("none"));
+        var secondResponse = secondEnvelope.Message;
 
         var finalContent = GetStringOrNull(secondResponse["content"]);
 
@@ -204,10 +237,12 @@ internal sealed class StrataAgent : IDisposable
         _httpClient.Dispose();
     }
 
-    private async Task<JsonObject> SendAsync(
+    private async Task<StrataResponse> SendAsync(
         IReadOnlyCollection<JsonObject> messages,
         JsonArray tools,
-        JsonNode toolChoice)
+        JsonNode toolChoice,
+        string? reasoningEffort = null,
+        int? maxTokens = null)
     {
         var payload = new JsonObject
         {
@@ -216,8 +251,8 @@ internal sealed class StrataAgent : IDisposable
             ["tools"] = tools.DeepClone(),
             ["tool_choice"] = toolChoice.DeepClone(),
             ["temperature"] = 0.1,
-            ["reasoning_effort"] = _options.ReasoningEffort,
-            ["max_tokens"] = _options.MaxTokens,
+            ["reasoning_effort"] = reasoningEffort ?? _options.ReasoningEffort,
+            ["max_tokens"] = maxTokens ?? _options.MaxTokens,
             ["stream"] = false,
         };
 
@@ -249,8 +284,25 @@ internal sealed class StrataAgent : IDisposable
         var choice = root["choices"]?[0]?.AsObject()
             ?? throw new InvalidOperationException("STRATA response contains no choices.");
 
-        return choice["message"]?.AsObject()
+        var message = choice["message"]?.AsObject()
             ?? throw new InvalidOperationException("STRATA response contains no assistant message.");
+
+        var finishReason = GetStringOrNull(choice["finish_reason"]);
+        var contentLength = GetStringOrNull(message["content"])?.Length ?? 0;
+        var reasoningLength = GetStringOrNull(message["reasoning_content"])?.Length ?? 0;
+        var toolCallCount = message["tool_calls"]?.AsArray().Count ?? 0;
+
+        var usage = root["usage"]?.AsObject();
+        var promptTokens = GetIntOrNull(usage?["prompt_tokens"]);
+        var completionTokens = GetIntOrNull(usage?["completion_tokens"]);
+        var totalTokens = GetIntOrNull(usage?["total_tokens"]);
+
+        Console.WriteLine(
+            $"STRATA msg  : finish={finishReason ?? "<null>"}, content={contentLength} chars, " +
+            $"reasoning={reasoningLength} chars, tools={toolCallCount}, " +
+            $"tokens={promptTokens?.ToString() ?? "?"}/{completionTokens?.ToString() ?? "?"}/{totalTokens?.ToString() ?? "?"}.");
+
+        return new StrataResponse(message, finishReason);
     }
 
     private static JsonObject CloneAssistantMessage(JsonObject responseMessage)
@@ -309,4 +361,18 @@ internal sealed class StrataAgent : IDisposable
             ? node.GetValue<string>()
             : node.ToJsonString();
     }
+
+    private static int? GetIntOrNull(JsonNode? node)
+    {
+        if (node is null)
+            return null;
+
+        return node.GetValueKind() == JsonValueKind.Number && node.TryGetValue<int>(out var value)
+            ? value
+            : null;
+    }
+
+    private sealed record StrataResponse(
+        JsonObject Message,
+        string? FinishReason);
 }
