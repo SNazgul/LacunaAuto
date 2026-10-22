@@ -59,3 +59,28 @@ Tool call  : OK
 Tool result: OK
 Final      : LACUNA_QWEN_SMOKE_OK
 ```
+
+
+## Verified on user's Windows environment
+
+Verified on 2026-10-23:
+- .NET SDK 10.0.402 selected successfully through the repository global.json policy.
+- `dotnet build tools\LacunaAuto.QwenUiTester\LacunaAuto.QwenUiTester.csproj` succeeded.
+- Remote STRATA smoke test succeeded against the configured HTTPS Chat Completions endpoint.
+- Bearer authentication through Caddy succeeded.
+- Model `qwen3.8-flash-next-coder-iq1_m` responded with `reasoning_effort=high`.
+- Forced `smoke_echo` tool call succeeded.
+- Tool-result continuation succeeded.
+- Final marker returned exactly: `LACUNA_QWEN_SMOKE_OK`.
+
+Observed successful tail:
+
+```text
+Transport  : OK
+Auth       : OK
+Tool call  : OK
+Tool result: OK
+Final      : LACUNA_QWEN_SMOKE_OK
+```
+
+The next verification step is the complete local loop: runner-owned Web app -> full Playwright regression -> Qwen review tool loop -> structured review artifacts.
