@@ -84,3 +84,17 @@ Final      : LACUNA_QWEN_SMOKE_OK
 ```
 
 The next verification step is the complete local loop: runner-owned Web app -> full Playwright regression -> Qwen review tool loop -> structured review artifacts.
+
+
+## Playwright regression checkpoint verified
+
+Verified on the user's Windows environment:
+- runner-owned LacunaAuto.Web started successfully on http://127.0.0.1:5132/
+- direct repository-local Playwright executable invocation works;
+- full browsing regression suite completed successfully;
+- result: 37 passed, 0 failed;
+- effective runner config reported baseURL=http://127.0.0.1:5132/, Chromium headless, locale=en-US;
+- SPA navigation evidence remained in-document with no main-frame document request;
+- responsive, localization/preferences, PWA asset, Home/Listings/Details, and routing coverage all passed.
+
+This confirms the Web + Playwright half of the orchestration loop. The next checkpoint is the full STRATA/Qwen review pass over the exact branch SHA using the constrained tool loop.
