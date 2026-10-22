@@ -42,10 +42,14 @@ internal sealed class StrataAgent : IDisposable
 
         for (var turn = 1; turn <= _options.MaxToolTurns; turn++)
         {
+            Console.WriteLine($"Qwen turn   : {turn}/{_options.MaxToolTurns} - sending request...");
+
             var responseMessage = await SendAsync(
                 messages,
                 _tools.GetDefinitions(),
                 JsonValue.Create("auto"));
+
+            Console.WriteLine($"Qwen turn   : {turn}/{_options.MaxToolTurns} - response received.");
 
             var assistantContent = GetStringOrNull(responseMessage["content"]);
             var toolCalls = responseMessage["tool_calls"]?.AsArray();
@@ -57,6 +61,7 @@ internal sealed class StrataAgent : IDisposable
                 if (string.IsNullOrWhiteSpace(assistantContent))
                     throw new InvalidOperationException("STRATA returned neither content nor tool calls.");
 
+                Console.WriteLine("Qwen        : final response received.");
                 return assistantContent;
             }
 
@@ -75,8 +80,11 @@ internal sealed class StrataAgent : IDisposable
                     ?? throw new InvalidOperationException("STRATA tool call is missing function name.");
 
                 var functionArguments = GetArguments(function["arguments"]);
+                Console.WriteLine($"Qwen tool   : {functionName} started.");
+
                 var toolResult = await _tools.ExecuteAsync(functionName, functionArguments);
 
+                Console.WriteLine($"Qwen tool   : {functionName} completed.");
                 messages.Add(ToolMessage(toolCallId, functionName, toolResult));
             }
         }
@@ -218,9 +226,14 @@ internal sealed class StrataAgent : IDisposable
             Encoding.UTF8,
             "application/json");
 
+        var startedAt = DateTimeOffset.UtcNow;
+
         using var response = await _httpClient.PostAsync(
             _options.ChatCompletionsUrl,
             content);
+
+        var elapsed = DateTimeOffset.UtcNow - startedAt;
+        Console.WriteLine($"STRATA HTTP : {(int)response.StatusCode} in {elapsed.TotalSeconds:F1}s.");
 
         var responseText = await response.Content.ReadAsStringAsync();
 
