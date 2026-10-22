@@ -371,7 +371,7 @@ internal sealed class ToolRegistry
         if (!File.Exists(sourcePath))
             return;
 
-        var artifactDirectory = Path.Combine(_e2eDirectory, "e2e-artifacts");
+        var artifactDirectory = Path.Combine(_e2eDirectory, "qwen-reviews");
         Directory.CreateDirectory(artifactDirectory);
 
         var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss-fff");
