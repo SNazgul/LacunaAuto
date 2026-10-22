@@ -120,8 +120,36 @@ internal sealed class StrataAgent : IDisposable
             }
         }
 
-        throw new InvalidOperationException(
-            $"STRATA exceeded the configured maximum of {_options.MaxToolTurns} tool turns.");
+        Console.WriteLine(
+            $"Qwen        : tool-turn budget {_options.MaxToolTurns} exhausted; requesting final report without tools.");
+
+        var finalMessages = messages
+            .Select(message => (JsonObject)message.DeepClone())
+            .ToList();
+
+        finalMessages.Add(Message(
+            "user",
+            "The tool budget is exhausted. Stop investigating and return the final review now using only the evidence already collected. " +
+            "Do not call tools. Do not include hidden reasoning. " +
+            "The first non-empty line must be Result: PASS, Result: FAIL, or Result: BLOCKED, followed by the required sections."));
+
+        var finalResponse = await SendAsync(
+            finalMessages,
+            _tools.GetDefinitions(),
+            JsonValue.Create("none"),
+            reasoningEffort: "low",
+            maxTokens: Math.Min(_options.MaxTokens, 8000));
+
+        var finalContent = GetStringOrNull(finalResponse.Message["content"]);
+        if (string.IsNullOrWhiteSpace(finalContent))
+        {
+            throw new InvalidOperationException(
+                $"STRATA exhausted {_options.MaxToolTurns} tool turns and returned no final content; " +
+                $"final finish_reason={finalResponse.FinishReason ?? "<null>"}.");
+        }
+
+        Console.WriteLine("Qwen        : final budget-recovery response received.");
+        return finalContent;
     }
 
     public async Task<string> RunSmokeAsync()
