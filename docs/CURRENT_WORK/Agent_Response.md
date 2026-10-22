@@ -98,3 +98,18 @@ Verified on the user's Windows environment:
 - responsive, localization/preferences, PWA asset, Home/Listings/Details, and routing coverage all passed.
 
 This confirms the Web + Playwright half of the orchestration loop. The next checkpoint is the full STRATA/Qwen review pass over the exact branch SHA using the constrained tool loop.
+
+
+## Qwen review defect found and fixed
+
+The first complete Qwen review correctly returned FAIL because it reproduced a runner defect:
+- Playwright uses `e2e/e2e-artifacts/` as its outputDir and cleans it at the start of each run.
+- The runner had stored `qwen-full-regression-report.json`, focused reports, and final Qwen review artifacts inside that same directory.
+- After a focused `run_playwright`, the preserved full report disappeared, so `read_e2e_report` could no longer re-read baseline evidence.
+
+Fix:
+- Qwen-owned review artifacts now live under ignored `e2e/qwen-reviews/`.
+- Playwright continues to own/clean `e2e/e2e-artifacts/`.
+- Focused Playwright execution now checks that the preserved full regression report still exists after each run.
+
+This finding was a valid runner/integration defect, not an application UI defect or false positive. Re-run the full review and confirm Qwen can read the baseline report both before and after focused reruns.
