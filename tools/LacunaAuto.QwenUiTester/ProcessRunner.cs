@@ -108,6 +108,29 @@ internal static class ProcessRunner
             TimedOut: timedOut);
     }
 
+    public static string ResolveLocalNodeTool(string packageRoot, string toolName)
+    {
+        var fileName = OperatingSystem.IsWindows()
+            ? $"{toolName}.cmd"
+            : toolName;
+
+        var fullPath = Path.Combine(
+            packageRoot,
+            "node_modules",
+            ".bin",
+            fileName);
+
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException(
+                $"Local Node tool '{toolName}' was not found at '{fullPath}'. " +
+                $"Install the repository's E2E dependencies first.",
+                fullPath);
+        }
+
+        return fullPath;
+    }
+
     public static string ResolveExecutable(string fileName)
     {
         if (!OperatingSystem.IsWindows())
