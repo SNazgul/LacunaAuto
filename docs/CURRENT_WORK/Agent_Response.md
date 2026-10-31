@@ -4,9 +4,9 @@ What changed:
 - Added `.github/workflows/qwen-ui-review.yml`.
 - Trigger: repository-owner PR comment whose first line is exactly `/qwen-ui-review`, plus a manual `workflow_dispatch` path.
 - The prepare job resolves the open PR through GitHub, rejects fork heads, and captures exact base/head SHAs.
-- The review job requires the dedicated Windows self-hosted runner labels `self-hosted, Windows, X64, lacuna-qwen`.
+- The review job runs on GitHub-hosted `windows-latest`; no self-hosted runner is used.
 - Checkout is pinned to the exact PR head SHA with `fetch-depth: 0` and `persist-credentials: false`.
-- The self-hosted review job has only `contents: read`; the write-capable token used for the final PR comment exists only in a separate GitHub-hosted publish job.
+- The review job has only `contents: read`; the write-capable token used for the final PR comment exists only in a separate GitHub-hosted publish job.
 - E2E dependencies are installed with `npm ci`; Chromium is installed through the locked Playwright package.
 - The Qwen runner is invoked with exact base/head SHAs, `reasoning-effort=medium`, `max-tokens=12000`, and `max-tool-turns=12`.
 - Qwen review artifacts are uploaded for 14 days and the report is posted back to the PR.
@@ -19,11 +19,10 @@ Security boundary:
 - Fork PRs are rejected before the self-hosted job starts.
 - PR checkout credentials are not persisted.
 - STRATA credentials are exposed only to the Qwen execution step.
-- The self-hosted runner should be dedicated/isolated because reviewed PR code is built and executed.
+- Because the repository is public and reviewed PR code is executed, the workflow deliberately uses disposable GitHub-hosted Windows runners instead of a developer-owned self-hosted machine.
 
 Not yet verified:
 - The GitHub workflow cannot be exercised from this branch through `issue_comment`; GitHub loads that trigger from the default branch.
-- A dedicated self-hosted runner with label `lacuna-qwen` is not yet registered/configured in this task.
 - Repository variable `STRATA_CHAT_COMPLETIONS_URL` and repository secret `STRATA_API_KEY` still need to be configured for Actions.
 - The first real slash-triggered PR review and PR comment round trip remain to be verified after the bootstrap workflow is merged.
 
