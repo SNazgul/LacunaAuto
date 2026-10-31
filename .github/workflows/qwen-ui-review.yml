@@ -119,7 +119,7 @@ jobs:
   review:
     name: Run Qwen review on exact PR SHA
     needs: prepare
-    runs-on: [self-hosted, Windows, X64, lacuna-qwen]
+    runs-on: windows-latest
     timeout-minutes: 45
     permissions:
       contents: read
