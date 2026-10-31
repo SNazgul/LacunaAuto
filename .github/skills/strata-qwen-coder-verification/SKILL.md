@@ -1,13 +1,13 @@
 ---
 name: strata-qwen-coder-verification
-description: Apply engineering verification only in GitHub Copilot sessions explicitly using Strata Qwen Coder. Check APIs, behavioral evidence, regressions, and reporting for software fixes and test changes. Leave inactive for other models or an unknown active model.
+description: Apply engineering verification only when the active model is explicitly identified as Strata Qwen Coder, either in GitHub Copilot or through the LacunaAuto local Qwen UI Tester runner/API. Check APIs, behavioral evidence, regressions, and reporting for software fixes and test changes. Leave inactive for other models or an unknown active model.
 ---
 
 # Senior engineering verification for Strata Qwen Coder
 
 ## Applicability
 
-Apply this workflow only when the assistant is GitHub Copilot and the active model is explicitly identified as **Strata Qwen Coder** by session metadata or the user. If the assistant or model differs, or the active model cannot be confirmed, leave this skill inactive. Do not infer model identity from its behavior.
+Apply this workflow only when the active model is explicitly identified as **Strata Qwen Coder** and it is running either in an authorized GitHub Copilot session or through the LacunaAuto local Qwen UI Tester runner/API. Model identity must be supplied explicitly by session metadata, runner metadata, or the user. If the model or execution context does not match, or the active model cannot be confirmed, leave this skill inactive. Do not infer model identity from its behavior.
 
 Keep this file standalone. Do not add references to this skill, its adoption, or its activation to general project documents, `AGENTS.md`, or shared agent instructions unless the user explicitly requests that. Update project documentation only for the actual implementation task being performed.
 
