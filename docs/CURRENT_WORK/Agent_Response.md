@@ -131,3 +131,18 @@ Fix:
 - after the configured tool-turn budget is exhausted, the runner makes one final no-tools, low-reasoning request and returns that structured review instead of failing immediately.
 
 Runtime re-verification is still required on Windows.
+
+
+## Full local orchestration PASS checkpoint
+
+A complete Windows run now finishes end-to-end with a structured PASS:
+- runner-owned Web app started;
+- full Playwright regression passed;
+- Qwen used constrained tools and focused Playwright checks;
+- preserved baseline evidence remained readable after focused reruns;
+- Qwen consumed the full 16-turn tool budget;
+- the forced no-tools finalization path executed successfully;
+- final result: PASS;
+- review/metadata artifacts were written under `e2e/qwen-reviews/`.
+
+The local orchestration path is functionally proven. Remaining work before merge is report-quality review, possible efficiency tuning, cleanup of the branch-only `Agent_Response.md`, and handling of the existing NU1903 dependency warnings.
