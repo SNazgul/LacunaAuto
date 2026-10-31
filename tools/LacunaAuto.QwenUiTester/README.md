@@ -218,29 +218,24 @@ Process exit codes:
 After `.github/workflows/qwen-ui-review.yml` is merged to the default branch,
 configure GitHub before the first real run.
 
-### Dedicated Windows runner
+### GitHub-hosted Windows runner
 
-Register a **dedicated** Windows x64 self-hosted GitHub Actions runner for this
-repository and add the custom label:
+The review job runs on GitHub-hosted `windows-latest`, not on a self-hosted
+machine. This is intentional because the repository is public and reviewed PR
+code is built and executed.
 
-```text
-lacuna-qwen
-```
+Each review therefore runs in a disposable GitHub-hosted VM rather than on the
+developer workstation. No local GitHub Actions runner needs to be installed or
+registered.
 
-The review job requires all four labels:
+The workflow still accepts only repository-owner-triggered reviews of
+same-repository PR heads. Fork PRs are rejected before the review job, because
+the STRATA secret is exposed only to the Qwen execution step and must never be
+made available to untrusted fork code.
 
-```text
-self-hosted, Windows, X64, lacuna-qwen
-```
-
-Treat this runner as an isolated automation machine. The checked-out PR code is
-built and executed, so do not share this runner with unrelated sensitive
-workloads. The workflow only accepts owner-triggered, same-repository PRs; fork
-PRs are rejected.
-
-The self-hosted job receives only `contents: read`. Checkout uses
-`persist-credentials: false`. The write-capable token used to post the final PR
-comment exists only in a separate GitHub-hosted publish job.
+Checkout uses `persist-credentials: false`, and the review job itself has only
+`contents: read`. The write-capable token used to post the final PR comment is
+kept in a separate GitHub-hosted publish job.
 
 ### Repository configuration
 
@@ -252,8 +247,7 @@ In **Settings -> Secrets and variables -> Actions**, add:
 
 Do not commit either value to the repository.
 
-The runner needs outbound access to GitHub Actions, NuGet/npm/Playwright setup
-sources, and the configured STRATA endpoint.
+The GitHub-hosted runner needs outbound access to NuGet/npm/Playwright setup sources and the configured STRATA endpoint.
 
 ### Trigger format
 
