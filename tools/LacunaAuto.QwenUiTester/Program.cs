@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -144,7 +145,10 @@ internal static class Program
                 finalStatus,
                 modelReview);
 
-            await File.WriteAllTextAsync(reviewPath, wrappedReview);
+            await File.WriteAllTextAsync(
+                reviewPath,
+                wrappedReview,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
             await File.WriteAllTextAsync(
                 metadataPath,
                 JsonSerializer.Serialize(
