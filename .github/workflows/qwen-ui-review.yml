@@ -1,0 +1,328 @@
+name: Qwen UI Review
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Open same-repository PR number to review"
+        required: true
+        type: string
+      acceptance:
+        description: "Optional acceptance criteria override"
+        required: false
+        type: string
+
+concurrency:
+  group: qwen-ui-review-${{ github.event_name }}-${{ github.event.issue.number || inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Authorize and resolve PR
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.issue.pull_request &&
+        github.event.comment.author_association == 'OWNER' &&
+        startsWith(github.event.comment.body, '/qwen-ui-review')
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pr_number: ${{ steps.pr.outputs.pr_number }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      head_branch: ${{ steps.pr.outputs.head_branch }}
+      base_sha: ${{ steps.pr.outputs.base_sha }}
+      base_ref: ${{ steps.pr.outputs.base_ref }}
+      scope: ${{ steps.pr.outputs.scope }}
+      acceptance: ${{ steps.pr.outputs.acceptance }}
+    steps:
+      - name: Resolve authorized same-repository PR
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isComment = context.eventName === 'issue_comment';
+            const prNumber = isComment
+              ? context.payload.issue.number
+              : Number(context.payload.inputs?.pr_number);
+
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed('A valid PR number is required.');
+              return;
+            }
+
+            if (isComment) {
+              const body = context.payload.comment?.body ?? '';
+              const lines = body.split(/\r?\n/);
+              const command = (lines.shift() ?? '').trim();
+
+              if (command !== '/qwen-ui-review') {
+                core.setFailed('The first line must be exactly /qwen-ui-review.');
+                return;
+              }
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            if (pr.state !== 'open') {
+              core.setFailed('PR #' + prNumber + ' is not open.');
+              return;
+            }
+
+            const expectedRepo = context.repo.owner + '/' + context.repo.repo;
+            if (pr.head.repo?.full_name !== expectedRepo) {
+              core.setFailed(
+                "Refusing PR #" + prNumber + ": head repository '" +
+                pr.head.repo?.full_name + "' is not '" + expectedRepo + "'."
+              );
+              return;
+            }
+
+            let acceptance;
+            if (isComment) {
+              const body = context.payload.comment?.body ?? '';
+              acceptance = body
+                .split(/\r?\n/)
+                .slice(1)
+                .join('\n')
+                .trim();
+            } else {
+              acceptance = (context.payload.inputs?.acceptance ?? '').trim();
+            }
+
+            if (!acceptance) {
+              acceptance =
+                'The normal Playwright regression suite passes; inspect the exact PR diff and relevant evidence through the constrained tools; return an evidence-backed PASS, FAIL, or BLOCKED review.';
+            }
+
+            const scope =
+              'Review PR #' + prNumber + ': ' + pr.title +
+              '. Do not modify application code or tests.';
+
+            core.setOutput('pr_number', String(prNumber));
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('head_branch', pr.head.ref);
+            core.setOutput('base_sha', pr.base.sha);
+            core.setOutput('base_ref', pr.base.ref);
+            core.setOutput('scope', scope);
+            core.setOutput('acceptance', acceptance);
+
+  review:
+    name: Run Qwen review on exact PR SHA
+    needs: prepare
+    runs-on: [self-hosted, Windows, X64, lacuna-qwen]
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      runner_exit: ${{ steps.qwen.outputs.exit_code }}
+      model_result: ${{ steps.qwen.outputs.model_result }}
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.head_sha }}
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install E2E dependencies
+        shell: pwsh
+        working-directory: e2e
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run Strata Qwen UI review
+        id: qwen
+        continue-on-error: true
+        shell: pwsh
+        env:
+          STRATA_CHAT_COMPLETIONS_URL: ${{ vars.STRATA_CHAT_COMPLETIONS_URL }}
+          STRATA_API_KEY: ${{ secrets.STRATA_API_KEY }}
+          QWEN_SCOPE: ${{ needs.prepare.outputs.scope }}
+          QWEN_ACCEPTANCE: ${{ needs.prepare.outputs.acceptance }}
+          QWEN_BASE_SHA: ${{ needs.prepare.outputs.base_sha }}
+          QWEN_HEAD_SHA: ${{ needs.prepare.outputs.head_sha }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:STRATA_CHAT_COMPLETIONS_URL)) {
+            throw "Repository variable STRATA_CHAT_COMPLETIONS_URL is not configured."
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:STRATA_API_KEY)) {
+            throw "Repository secret STRATA_API_KEY is not configured."
+          }
+
+          $arguments = @(
+            "run",
+            "--project", "tools\LacunaAuto.QwenUiTester",
+            "--",
+            "--base", $env:QWEN_BASE_SHA,
+            "--head", $env:QWEN_HEAD_SHA,
+            "--reasoning-effort", "medium",
+            "--max-tokens", "12000",
+            "--max-tool-turns", "12",
+            "--scope", $env:QWEN_SCOPE,
+            "--acceptance", $env:QWEN_ACCEPTANCE
+          )
+
+          & dotnet @arguments
+          $runnerExit = $LASTEXITCODE
+          "exit_code=$runnerExit" >> $env:GITHUB_OUTPUT
+
+          $metadataPath = "e2e\qwen-reviews\qwen-ui-review.json"
+          if (Test-Path $metadataPath) {
+            $metadata = Get-Content $metadataPath -Raw | ConvertFrom-Json
+            "model_result=$($metadata.result)" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "model_result=ERROR" >> $env:GITHUB_OUTPUT
+          }
+
+          exit $runnerExit
+
+      - name: Ensure publishable review artifact
+        if: always()
+        shell: pwsh
+        env:
+          REVIEW_EXIT: ${{ steps.qwen.outputs.exit_code }}
+          REVIEW_HEAD_SHA: ${{ needs.prepare.outputs.head_sha }}
+          REVIEW_BASE_SHA: ${{ needs.prepare.outputs.base_sha }}
+        run: |
+          $directory = "e2e\qwen-reviews"
+          New-Item -ItemType Directory -Force -Path $directory | Out-Null
+
+          $reviewPath = Join-Path $directory "qwen-ui-review.md"
+          if (!(Test-Path $reviewPath)) {
+            $fallback = @(
+              "# Strata Qwen UI Review",
+              "",
+              "- Result: **ERROR**",
+              "- Tested SHA: " + $env:REVIEW_HEAD_SHA,
+              "- Base SHA: " + $env:REVIEW_BASE_SHA,
+              "- Runner exit code: " + $env:REVIEW_EXIT,
+              "",
+              "The runner did not produce a structured review artifact. Inspect the GitHub Actions job log for the integration failure."
+            ) -join [Environment]::NewLine
+
+            [System.IO.File]::WriteAllText(
+              $reviewPath,
+              $fallback,
+              [System.Text.UTF8Encoding]::new($true)
+            )
+          }
+
+      - name: Upload Qwen review artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwen-ui-review-${{ github.run_id }}
+          path: e2e/qwen-reviews/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Classify runner result
+        if: always()
+        shell: pwsh
+        env:
+          REVIEW_EXIT: ${{ steps.qwen.outputs.exit_code }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:REVIEW_EXIT)) {
+            Write-Error "Qwen runner did not return an exit code."
+            exit 10
+          }
+
+          $exitCode = [int]$env:REVIEW_EXIT
+          if ($exitCode -ne 0) {
+            exit $exitCode
+          }
+
+  publish:
+    name: Publish review to PR
+    needs: [prepare, review]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Download Qwen review artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: qwen-ui-review-${{ github.run_id }}
+          path: qwen-review
+
+      - name: Post Qwen review comment
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ neds.prepare.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.prepare.outputs.head_sha }}
+          BASE_SHA: ${{ needs.prepare.outputs.base_sha }}
+          RUNNER_EXIT: ${{ needs.review.outputs.runner_exit }}
+          MODEL_RESULT: ${{ needs.review.outputs.model_result }}
+          REVIEW_JOB_RESULT: ${{ needs.review.result }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const prNumber = Number(process.env.PR_NUMBER);
+            const reportPath = 'qwen-review/qwen-ui-review.md';
+            let report = fs.readFileSync(reportPath, 'utf8').replace(/^\uFEFF/, '');
+
+            if (report.length > 55000) {
+              report = report.slice(0, 55000) +
+                '\n\n[Report truncated in PR comment; download the workflow artifact for the complete review.]';
+            }
+
+            const result = process.env.MODEL_RESULT || 'ERROR';
+            const label =
+              result === 'PASS' ? 'PASS' :
+              result === 'FAIL' ? 'FAIL' :
+              result === 'BLOCKED' ? 'BLOCKED' : 'ERROR';
+
+            const runUrl =
+              context.serverUrl + '/' + context.repo.owner + '/' +
+              context.repo.repo + '/actions/runs/' + context.runId;
+
+            const header = [
+              '## Qwen UI Review - ' + label,
+              '',
+              '- Tested SHA: `' + process.env.HEAD_SHA + '`',
+              '- Base SHA: `' + process.env.BASE_SHA + '`',
+              '- Runner exit: `' + (process.env.RUNNER_EXIT || 'unknown') + '`',
+              '- Review job: `' + process.env.REVIEW_JOB_RESULT + '`',
+              '- Workflow run: ' + runUrl,
+              ''
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: header + report
+            });
