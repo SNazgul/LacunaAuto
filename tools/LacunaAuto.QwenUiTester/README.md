@@ -21,8 +21,15 @@ exact Git revision
     -> structured Markdown review
 ```
 
-GitHub PR triggering and PR comments are intentionally not part of this stage.
-They should be added only after the local loop is verified.
+The local loop has been verified. The next integration layer is provided by
+`.github/workflows/qwen-ui-review.yml`: an owner-triggered GitHub PR workflow
+checks out the exact same-repository PR head SHA on a dedicated Windows
+self-hosted runner, executes this tester, uploads the review artifacts, and
+publishes the report back to the PR from a separate GitHub-hosted job.
+
+The workflow intentionally does **not** create a GitHub Check Run yet. First
+verify the real self-hosted runner and PR-comment loop; add formal check/status
+reporting as a separate follow-up slice.
 
 The runner also does **not** create adaptive Playwright probes yet. Qwen may
 rerun existing focused specs and must explicitly report new behavior that
@@ -206,13 +213,85 @@ Process exit codes:
 | 3 | BLOCKED |
 | 10 | runner/integration failure |
 
-## Next stage after local verification
+## GitHub PR review workflow
 
-After this local loop is proven against the real STRATA installation:
+After `.github/workflows/qwen-ui-review.yml` is merged to the default branch,
+configure GitHub before the first real run.
 
-1. add an isolated GitHub self-hosted runner;
-2. checkout the exact PR head SHA;
-3. pass PR scope/acceptance criteria to this tool;
-4. publish `qwen-ui-review.md` as a PR comment;
-5. expose PASS / FAIL / BLOCKED as a GitHub check;
-6. only then consider controlled temporary adaptive Playwright probes.
+### Dedicated Windows runner
+
+Register a **dedicated** Windows x64 self-hosted GitHub Actions runner for this
+repository and add the custom label:
+
+```text
+lacuna-qwen
+```
+
+The review job requires all four labels:
+
+```text
+self-hosted, Windows, X64, lacuna-qwen
+```
+
+Treat this runner as an isolated automation machine. The checked-out PR code is
+built and executed, so do not share this runner with unrelated sensitive
+workloads. The workflow only accepts owner-triggered, same-repository PRs; fork
+PRs are rejected.
+
+The self-hosted job receives only `contents: read`. Checkout uses
+`persist-credentials: false`. The write-capable token used to post the final PR
+comment exists only in a separate GitHub-hosted publish job.
+
+### Repository configuration
+
+In **Settings -> Secrets and variables -> Actions**, add:
+
+- repository variable `STRATA_CHAT_COMPLETIONS_URL` containing the full
+  `/v1/chat/completions` endpoint;
+- repository secret `STRATA_API_KEY`.
+
+Do not commit either value to the repository.
+
+The runner needs outbound access to GitHub Actions, NuGet/npm/Playwright setup
+sources, and the configured STRATA endpoint.
+
+### Trigger format
+
+On an open same-repository PR, the repository owner can comment:
+
+```text
+/qwen-ui-review
+Regression passes. Verify the exact PR diff and the acceptance criteria for this change.
+```
+
+The first line must be exactly `/qwen-ui-review`. Everything after the first
+line becomes the acceptance criteria. If it is omitted, the workflow uses the
+runner's generic evidence-backed review criteria.
+
+A manual `workflow_dispatch` path is also available after the workflow exists
+on the default branch.
+
+The workflow:
+
+1. resolves the open PR and rejects fork heads;
+2. captures the exact base and head SHAs;
+3. checks out the exact head SHA with full Git history;
+4. installs the locked E2E dependencies and Chromium;
+5. runs the tester with `reasoning-effort=medium`, `max-tokens=12000`, and
+   `max-tool-turns=12`;
+6. preserves `e2e/qwen-reviews/` as a 14-day workflow artifact;
+7. posts the complete or bounded review back to the PR;
+8. fails the self-hosted review job for FAIL, BLOCKED, or integration failure.
+
+At this stage the PR comment and workflow result are the authoritative GitHub
+surfaces. A dedicated PASS / FAIL / BLOCKED Check Run is the next automation
+slice after the first real self-hosted execution is verified.
+
+## Next stage
+
+After the first real GitHub-triggered review is verified:
+
+1. expose PASS / FAIL / BLOCKED as a GitHub Check Run tied to the tested SHA;
+2. decide whether Qwen review should remain slash-triggered or also run
+   automatically for selected PR changes;
+3. only then consider controlled temporary adaptive Playwright probes.
