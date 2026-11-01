@@ -297,13 +297,13 @@ The workflow publishes two GitHub surfaces for each completed review:
 - a detailed PR comment containing the bounded Markdown report;
 - a `Qwen UI Review` Check Run attached to the **exact tested PR head SHA**.
 
-Check Run conclusions are mapped as follows:
+Check Run conclusions are mapped as follows. `BLOCKED` deliberately fails closed because GitHub treats a neutral required check as satisfying the requirement:
 
 | Qwen result | Check conclusion |
 | --- | --- |
 | `PASS` | `success` |
 | `FAIL` | `failure` |
-| `BLOCKED` | `neutral` |
+| `BLOCKED` | `failure` |
 | integration/error | `failure` |
 
 This exact-SHA binding is important because an `issue_comment` workflow itself
