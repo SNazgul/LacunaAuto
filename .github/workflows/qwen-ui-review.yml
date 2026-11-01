@@ -306,7 +306,6 @@ jobs:
             const result = process.env.MODEL_RESULT || 'ERROR';
             const conclusion =
               result === 'PASS' ? 'success' :
-              result === 'BLOCKED' ? 'neutral' :
               'failure';
 
             const runUrl =
