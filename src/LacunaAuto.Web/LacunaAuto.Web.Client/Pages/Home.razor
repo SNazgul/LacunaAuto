@@ -1,9 +1,11 @@
 @page "/"
 @using LacunaAuto.UI.Shared.Components
-@using LacunaAuto.Web.Client.Data
+@using LacunaAuto.Web.Client.Services
 @using Microsoft.Extensions.Localization
+@using System.Text.Json
 @inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
 @inject NavigationManager Navigation
+@inject IPublicListingsService ListingsService
 
 <PageTitle>Lacuna Auto</PageTitle>
 
@@ -39,19 +41,64 @@
     </div>
 
     <div class="listings-feed">
-        @foreach (var listing in _listings)
+        @if (_isLoading)
         {
-            <VehicleListingCard Model="listing" OnClick="() => NavigateToDetails(listing.Id)" />
+            <p class="status-message" data-lacuna-loading="true">@Localizer["Loading"]</p>
+        }
+        else if (_hasLoadingError)
+        {
+            <p class="status-message">@Localizer["ErrorLoadingContent"]</p>
+        }
+        else
+        {
+            @foreach (var listing in _listings)
+            {
+                <VehicleListingCard Model="listing" OnClick="() => NavigateToDetails(listing.Id)" />
+            }
         }
     </div>
 </div>
 
 @code {
     private IReadOnlyList<VehicleListingCardModel> _listings = Array.Empty<VehicleListingCardModel>();
+    private bool _isLoading = true;
+    private bool _hasLoadingError;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        _listings = VehicleListingSeedData.GetAll();
+        try
+        {
+            _listings = await ListingsService.GetAllAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _hasLoadingError = true;
+            _listings = Array.Empty<VehicleListingCardModel>();
+        }
+        catch (TaskCanceledException)
+        {
+            _hasLoadingError = true;
+            _listings = Array.Empty<VehicleListingCardModel>();
+        }
+        catch (JsonException)
+        {
+            _hasLoadingError = true;
+            _listings = Array.Empty<VehicleListingCardModel>();
+        }
+        catch (NotSupportedException)
+        {
+            _hasLoadingError = true;
+            _listings = Array.Empty<VehicleListingCardModel>();
+        }
+        catch (InvalidOperationException)
+        {
+            _hasLoadingError = true;
+            _listings = Array.Empty<VehicleListingCardModel>();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private void NavigateToListings()

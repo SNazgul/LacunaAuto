@@ -22,7 +22,8 @@ export type Preferences = {
   CurrencyCode: string;
 };
 
-// Navigates to an app route and waits until the Blazor WASM page is rendered.
+// Navigates to an app route and waits until the Blazor WASM page is rendered
+// and page-level data-loading markers are gone.
 export async function gotoApp(page: Page, path: string, readySelector: string) {
   const response = await page.goto(absoluteUrl(path), { waitUntil: "load" });
   await waitForAppReady(page, readySelector);
@@ -30,10 +31,16 @@ export async function gotoApp(page: Page, path: string, readySelector: string) {
 }
 
 // Blazor WASM renders asynchronously after the document "load" event, so waiting
-// for a rendered selector (an event-driven DOM wait) is the readiness signal;
-// waiting for "load" alone can return before any component is rendered.
+// for a rendered selector is required. For API-backed listing pages, rendered
+// shell markup may appear before listing-data requests complete, so readiness
+// also waits for the loading marker to disappear.
 export async function waitForAppReady(page: Page, readySelector: string) {
   await page.waitForSelector(readySelector, { timeout: 30_000, state: "attached" });
+  await page.waitForFunction(
+    () => document.querySelector('[data-lacuna-loading="true"]') === null,
+    undefined,
+    { timeout: 30_000 },
+  );
 }
 
 // Writes the given preferences into localStorage and reloads the page so the
@@ -187,4 +194,3 @@ export async function readWindowMarker(page: Page, key: string): Promise<string 
     { key },
   );
 }
-

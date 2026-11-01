@@ -9,7 +9,7 @@ Start the listings browsing vertical slice while keeping the accepted browsing U
 - [x] Define the minimum listing/domain data required by the accepted Home, Listings, and Listing Details UI.
 - [x] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
 - [x] Add the minimal public browsing API needed by the existing UI.
-- [ ] Connect the existing browsing UI to the real API without redesigning accepted screens.
+- [x] Connect the existing browsing UI to the real API without redesigning accepted screens.
 
 Keep this as a small end-to-end slice. Do not start authentication, listing management, photo upload/storage implementation, chat, or Hybrid work in this task.
 
@@ -21,6 +21,29 @@ After the first real listings browsing slice is accepted:
 - keep prices in each listing's original currency until real conversion is explicitly implemented.
 
 ## Recently Completed
+
+- Milestone 2, Slice 2.1B UI/API integration implemented and verified:
+  - Home, Listings, and Listing Details no longer read `VehicleListingSeedData` at runtime; they now load from the existing public API contract (`GET /api/listings`) through a minimal client-side service (`IPublicListingsService` + `PublicListingsApiService`) and a client DTO-to-`VehicleListingCardModel` mapping layer.
+  - The listings client remains intentionally minimal for this slice: no cache and no broader state-management layer were introduced.
+  - API failures are now explicitly observable in the pages through localized minimal error states (`ErrorLoadingContent`) and there is no seed-data fallback path.
+  - Existing accepted UI behavior remains intact (same Home/Listings/Details layout and breakpoints, EN/UK/RU localization, Language/Regional Format/Currency preference behavior, original-currency display behavior, and listing IDs/image URLs from persisted seeded data).
+  - Development connectivity was wired minimally for browser-to-API calls:
+    - Web client development API base address: `http://localhost:5133/`.
+    - API CORS allowlist added for local Web origins.
+    - API Development launch HTTP port moved from `5132` to `5133` to avoid collision with the Qwen runner’s Web host (`127.0.0.1:5132`).
+  - Focused tests added for the new client/mapping behavior (`PublicListingsApiServiceTests`): **6 new tests passed**.
+  - Focused .NET validation passed:
+    - `dotnet test test/LacunaAuto.UI.Shared.Tests/LacunaAuto.UI.Shared.Tests.csproj` → **7/7 passed**.
+    - `dotnet test test/LacunaAuto.Api.Test/LacunaAuto.Api.Test.csproj` → **4/4 passed**.
+    - `dotnet build src/LacunaAuto.Web/LacunaAuto.Web/LacunaAuto.Web.csproj` → passed.
+    - `dotnet build src/LacunaAuto.Api/LacunaAuto.Api.csproj` → passed.
+  - Integrated slice validation passed against running local services:
+    - PostgreSQL started with `docker compose up -d postgres`.
+    - `LacunaAuto.Api` and `LacunaAuto.Web` were run together (API on `5133`, Web on `5032`).
+    - Existing Playwright suite run against Web origin (`E2E_BASE_URL=http://localhost:5032/`) passed: **37/37**.
+  - Full-solution commands remain blocked by missing MAUI Android workload (not a Slice 2.1B logic regression):
+    - `dotnet restore/build/test LacunaAuto.sln` currently fail with `NETSDK1147` (`maui-android` missing in `LacunaAuto.Hybrid` / `LacunaAuto.Frontend`).
+  - Qwen runner scope was intentionally not redesigned in this slice. Current runner still hosts Web-only and needs a separate infrastructure follow-up to independently validate API-backed UI.
 
 - Milestone 2, Slice 2.1A backend/persistence foundation implemented (backend only, no UI wiring):
   - Added Core listing domain types independent from `LacunaAuto.UI.Shared`, including minimal card fields plus `IsPublished` and explicit persisted `IsNew` behavior.

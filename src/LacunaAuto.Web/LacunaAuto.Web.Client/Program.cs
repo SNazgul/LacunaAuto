@@ -2,6 +2,7 @@ using System.Globalization;
 using LacunaAuto.UI.Shared.Services;
 using LacunaAuto.Web.Client.Services;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.Extensions.Configuration;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -10,6 +11,20 @@ builder.Services.AddLocalization();
 
 // Register user preferences service
 builder.Services.AddSingleton<IUserPreferencesService, LocalStorageUserPreferencesService>();
+builder.Services.AddScoped<IPublicListingsService>(
+    serviceProvider =>
+    {
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+        var hostEnvironment = serviceProvider.GetRequiredService<IWebAssemblyHostEnvironment>();
+
+        var apiBaseAddress = ResolveListingsApiBaseAddress(configuration, hostEnvironment.BaseAddress);
+        var httpClient = new HttpClient
+        {
+            BaseAddress = apiBaseAddress
+        };
+
+        return new PublicListingsApiService(httpClient);
+    });
 
 var host = builder.Build();
 
@@ -35,3 +50,18 @@ catch
 }
 
 await host.RunAsync();
+
+static Uri ResolveListingsApiBaseAddress(IConfiguration configuration, string hostBaseAddress)
+{
+    var configuredBaseAddress = configuration["Api:BaseUrl"];
+    var candidateBaseAddress = string.IsNullOrWhiteSpace(configuredBaseAddress)
+        ? hostBaseAddress
+        : configuredBaseAddress;
+
+    if (!Uri.TryCreate(candidateBaseAddress, UriKind.Absolute, out var apiBaseAddress))
+    {
+        throw new InvalidOperationException("Api:BaseUrl must be a valid absolute URI when configured.");
+    }
+
+    return apiBaseAddress;
+}

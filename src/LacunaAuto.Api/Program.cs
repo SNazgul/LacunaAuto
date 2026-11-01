@@ -13,6 +13,9 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+    const string PublicListingsCorsPolicyName = "PublicListingsCorsPolicy";
+    var corsAllowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+    var hasCorsOrigins = corsAllowedOrigins.Length > 0;
 
     builder.Host.UseSerilog((context, services, loggerConfiguration) =>
     {
@@ -74,6 +77,22 @@ try
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
+    if (hasCorsOrigins)
+    {
+        builder.Services.AddCors(
+            options =>
+            {
+                options.AddPolicy(
+                    PublicListingsCorsPolicyName,
+                    policyBuilder =>
+                    {
+                        policyBuilder
+                            .WithOrigins(corsAllowedOrigins)
+                            .AllowAnyHeader()
+                            .AllowAnyMethod();
+                    });
+            });
+    }
     if (!builder.Environment.IsEnvironment("Testing"))
     {
         builder.Services.AddLacunaAutoData(builder.Configuration);
@@ -107,6 +126,10 @@ try
     }
 
     app.UseHttpsRedirection();
+    if (hasCorsOrigins)
+    {
+        app.UseCors(PublicListingsCorsPolicyName);
+    }
 
     app.MapPublicListingsEndpoints();
 

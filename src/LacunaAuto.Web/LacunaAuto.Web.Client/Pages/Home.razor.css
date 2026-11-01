@@ -143,6 +143,13 @@
     aspect-ratio: 5 / 3;
 }
 
+.status-message {
+    color: var(--color-text-secondary);
+    text-align: center;
+    margin: 0;
+    padding: var(--spacing-xl) 0;
+}
+
 @media (min-width: 600px) {
     .header-content,
     .categories,
@@ -165,6 +172,10 @@
         gap: var(--spacing-lg);
         padding-left: 0;
         padding-right: 0;
+    }
+
+    .status-message {
+        grid-column: 1 / -1;
     }
 }
 
@@ -190,4 +201,3 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
-

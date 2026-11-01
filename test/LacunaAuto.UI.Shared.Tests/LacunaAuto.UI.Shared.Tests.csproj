@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LacunaAuto.UI.Shared\LacunaAuto.UI.Shared.csproj" />
+    <ProjectReference Include="..\..\src\LacunaAuto.Web\LacunaAuto.Web.Client\LacunaAuto.Web.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>

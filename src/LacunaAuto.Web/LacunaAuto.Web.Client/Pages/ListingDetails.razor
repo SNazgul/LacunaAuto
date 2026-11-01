@@ -1,16 +1,36 @@
 @page "/listings/{Id:int}"
 @using LacunaAuto.UI.Shared.Models
 @using LacunaAuto.UI.Shared.Formatting
-@using LacunaAuto.Web.Client.Data
+@using LacunaAuto.Web.Client.Services
 @using Microsoft.Extensions.Localization
 @using System.Globalization
+@using System.Text.Json
 @inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
 @inject NavigationManager Navigation
+@inject IPublicListingsService ListingsService
 
 <PageTitle>@GetPageTitle() - Lacuna Auto</PageTitle>
 
 <div class="details-page">
-    @if (_listing == null)
+    @if (_isLoading)
+    {
+        <div class="not-found" data-lacuna-loading="true">
+            <h2>@Localizer["Loading"]</h2>
+        </div>
+    }
+    else if (_hasLoadingError)
+    {
+        <div class="not-found">
+            <h2>@Localizer["ErrorLoadingContent"]</h2>
+            <button class="back-button-inline" type="button" @onclick="ReloadCurrentListing">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14.5 5L7.5 12L14.5 19" />
+                </svg>
+                <span>@Localizer["TryAgain"]</span>
+            </button>
+        </div>
+    }
+    else if (_listing == null)
     {
         <div class="not-found">
             <h2>@Localizer["NotFound"]</h2>
@@ -123,15 +143,57 @@
     private UserPreferences? _preferences { get; set; }
 
     private VehicleListingCardModel? _listing;
+    private bool _isLoading = true;
+    private bool _hasLoadingError;
 
-    protected override void OnInitialized()
+    protected override async Task OnParametersSetAsync()
     {
-        var allListings = VehicleListingSeedData.GetAll();
-        _listing = allListings.FirstOrDefault(l => l.Id == Id);
+        _isLoading = true;
+        _hasLoadingError = false;
+        _listing = null;
+
+        try
+        {
+            _listing = await ListingsService.GetByIdAsync(Id);
+        }
+        catch (HttpRequestException)
+        {
+            _hasLoadingError = true;
+        }
+        catch (TaskCanceledException)
+        {
+            _hasLoadingError = true;
+        }
+        catch (JsonException)
+        {
+            _hasLoadingError = true;
+        }
+        catch (NotSupportedException)
+        {
+            _hasLoadingError = true;
+        }
+        catch (InvalidOperationException)
+        {
+            _hasLoadingError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private string GetPageTitle()
     {
+        if (_isLoading)
+        {
+            return Localizer["Loading"];
+        }
+
+        if (_hasLoadingError)
+        {
+            return Localizer["ErrorLoadingContent"];
+        }
+
         return _listing != null ? $"{_listing.Make} {_listing.Model}" : Localizer["NotFound"];
     }
 
@@ -143,6 +205,11 @@
     private void NavigateToListings()
     {
         Navigation.NavigateTo("/listings");
+    }
+
+    private void ReloadCurrentListing()
+    {
+        Navigation.NavigateTo($"/listings/{Id}", forceLoad: true);
     }
 
     private string FormatMileage()
