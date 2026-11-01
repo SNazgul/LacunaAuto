@@ -249,9 +249,20 @@ Do not commit either value to the repository.
 
 The GitHub-hosted runner needs outbound access to NuGet/npm/Playwright setup sources and the configured STRATA endpoint.
 
-### Trigger format
+### Trigger behavior
 
-On an open same-repository PR, the repository owner can comment:
+For a same-repository PR authored by the repository owner, the workflow runs
+automatically on:
+
+- PR opened;
+- PR reopened;
+- PR head updated (`synchronize`).
+
+Fork PRs and non-owner PRs are rejected before the review job and therefore
+never receive the STRATA secret.
+
+The owner can still request a manual rerun or override acceptance criteria by
+commenting:
 
 ```text
 /qwen-ui-review
@@ -259,11 +270,10 @@ Regression passes. Verify the exact PR diff and the acceptance criteria for this
 ```
 
 The first line must be exactly `/qwen-ui-review`. Everything after the first
-line becomes the acceptance criteria. If it is omitted, the workflow uses the
-runner's generic evidence-backed review criteria.
+line becomes the acceptance criteria. If omitted, the generic evidence-backed
+criteria are used.
 
-A manual `workflow_dispatch` path is also available after the workflow exists
-on the default branch.
+A manual `workflow_dispatch` path is also available.
 
 The workflow:
 
@@ -299,8 +309,8 @@ and reviews the PR head SHA explicitly.
 
 After the exact-SHA Check Run is verified on a real PR:
 
-1. decide whether Qwen review should remain slash-triggered or also run
-   automatically for selected PR changes;
-2. decide whether branch protection should require the `Qwen UI Review` check
-   for selected branches/workflows;
+1. decide whether branch protection should require the `Qwen UI Review` check
+   for `main`;
+2. decide whether automatic review should later expand beyond OWNER-authored
+   same-repository PRs;
 3. only then consider controlled temporary adaptive Playwright probes.
