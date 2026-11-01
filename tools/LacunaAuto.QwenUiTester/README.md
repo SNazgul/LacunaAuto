@@ -275,7 +275,7 @@ The workflow:
    `max-tool-turns=12`;
 6. preserves `e2e/qwen-reviews/` as a 14-day workflow artifact;
 7. posts the complete or bounded review back to the PR;
-8. fails the self-hosted review job for FAIL, BLOCKED, or integration failure.
+8. fails the review job for FAIL, BLOCKED, or integration failure.
 
 The workflow publishes two GitHub surfaces for each completed review:
 
