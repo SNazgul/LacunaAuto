@@ -8,7 +8,7 @@ public sealed class PublicListingCardDto
 
     public required string Model { get; init; }
 
-    public required string TrimOrVariant { get; init; }
+    public string? TrimOrVariant { get; init; }
 
     public required int Year { get; init; }
 
@@ -18,13 +18,13 @@ public sealed class PublicListingCardDto
 
     public required int Mileage { get; init; }
 
-    public required string FuelType { get; init; }
+    public string? FuelType { get; init; }
 
-    public required string Transmission { get; init; }
+    public string? Transmission { get; init; }
 
-    public required string Location { get; init; }
+    public string? Location { get; init; }
 
-    public required string ImageUrl { get; init; }
+    public string? ImageUrl { get; init; }
 
     public required bool IsNew { get; init; }
 }

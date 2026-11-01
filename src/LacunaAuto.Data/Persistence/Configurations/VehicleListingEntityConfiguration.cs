@@ -35,8 +35,7 @@ internal sealed class VehicleListingEntityConfiguration : IEntityTypeConfigurati
 
         builder.Property(listing => listing.TrimOrVariant)
             .HasColumnName("trim_or_variant")
-            .HasMaxLength(64)
-            .IsRequired();
+            .HasMaxLength(64);
 
         builder.Property(listing => listing.Year)
             .HasColumnName("year")
@@ -59,24 +58,20 @@ internal sealed class VehicleListingEntityConfiguration : IEntityTypeConfigurati
         builder.Property(listing => listing.FuelType)
             .HasColumnName("fuel_type")
             .HasConversion<string>()
-            .HasMaxLength(16)
-            .IsRequired();
+            .HasMaxLength(16);
 
         builder.Property(listing => listing.Transmission)
             .HasColumnName("transmission")
             .HasConversion<string>()
-            .HasMaxLength(16)
-            .IsRequired();
+            .HasMaxLength(16);
 
         builder.Property(listing => listing.Location)
             .HasColumnName("location")
-            .HasMaxLength(128)
-            .IsRequired();
+            .HasMaxLength(128);
 
         builder.Property(listing => listing.ImageUrl)
             .HasColumnName("image_url")
-            .HasMaxLength(512)
-            .IsRequired();
+            .HasMaxLength(512);
 
         builder.Property(listing => listing.IsNew)
             .HasColumnName("is_new")

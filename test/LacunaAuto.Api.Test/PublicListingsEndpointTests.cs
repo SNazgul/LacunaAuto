@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using LacunaAuto.Core.Listings;
+using LacunaAuto.Data.Initialization;
 using LacunaAuto.Data.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -109,20 +111,91 @@ public sealed class PublicListingsEndpointTests
         Assert.Equal("BMW", listings[1].Make);
     }
 
+    [Fact]
+    public async Task GetListings_ShouldSerializeNullOptionalFields()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(
+                id: 1,
+                isPublished: true,
+                make: "Tesla",
+                model: "Model 3",
+                trimOrVariant: null,
+                fuelType: null,
+                transmissionType: null,
+                location: null,
+                imageUrl: null,
+                isNew: true)
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        Assert.Contains("\"trimOrVariant\":null", payload);
+        Assert.Contains("\"fuelType\":null", payload);
+        Assert.Contains("\"transmission\":null", payload);
+        Assert.Contains("\"location\":null", payload);
+        Assert.Contains("\"imageUrl\":null", payload);
+
+        var listings = JsonSerializer.Deserialize<List<PublicListingCardResponse>>(
+            payload,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.NotNull(listings);
+        Assert.Single(listings);
+
+        var listing = listings[0];
+        Assert.Equal(1, listing.Id);
+        Assert.Null(listing.TrimOrVariant);
+        Assert.Null(listing.FuelType);
+        Assert.Null(listing.Transmission);
+        Assert.Null(listing.Location);
+        Assert.Null(listing.ImageUrl);
+    }
+
+    [Fact]
+    public async Task DevelopmentListingsSeeder_ShouldBeIdempotent_WhenRunTwice()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var options = new DbContextOptionsBuilder<LacunaAutoDbContext>()
+            .UseInMemoryDatabase($"development-seeder-{Guid.NewGuid()}")
+            .Options;
+
+        await using var dbContext = new LacunaAutoDbContext(options);
+
+        await DevelopmentListingsSeeder.SeedAsync(dbContext, cancellationToken);
+        await DevelopmentListingsSeeder.SeedAsync(dbContext, cancellationToken);
+
+        var listings = await dbContext.Listings
+            .OrderBy(listing => listing.Id)
+            .ToListAsync(cancellationToken);
+
+        Assert.Equal(8, listings.Count);
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8], listings.Select(listing => listing.Id));
+    }
+
     private static VehicleListing CreateListing(
         int id,
         bool isPublished,
         string make,
         string model,
-        string trimOrVariant = "Base",
+        string? trimOrVariant = "Base",
         int year = 2023,
         decimal price = 10000m,
         string originalCurrencyCode = "USD",
         int mileage = 1000,
-        FuelType fuelType = FuelType.Petrol,
-        TransmissionType transmissionType = TransmissionType.Automatic,
-        string location = "Kyiv, Ukraine",
-        string imageUrl = "/images/vehicles/default.svg",
+        FuelType? fuelType = FuelType.Petrol,
+        TransmissionType? transmissionType = TransmissionType.Automatic,
+        string? location = "Kyiv, Ukraine",
+        string? imageUrl = "/images/vehicles/default.svg",
         bool isNew = false)
     {
         return new VehicleListing
@@ -152,7 +225,7 @@ public sealed class PublicListingsEndpointTests
 
         public string Model { get; init; } = string.Empty;
 
-        public string TrimOrVariant { get; init; } = string.Empty;
+        public string? TrimOrVariant { get; init; }
 
         public int Year { get; init; }
 
@@ -162,13 +235,13 @@ public sealed class PublicListingsEndpointTests
 
         public int Mileage { get; init; }
 
-        public string FuelType { get; init; } = string.Empty;
+        public string? FuelType { get; init; }
 
-        public string Transmission { get; init; } = string.Empty;
+        public string? Transmission { get; init; }
 
-        public string Location { get; init; } = string.Empty;
+        public string? Location { get; init; }
 
-        public string ImageUrl { get; init; } = string.Empty;
+        public string? ImageUrl { get; init; }
 
         public bool IsNew { get; init; }
     }

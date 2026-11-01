@@ -50,8 +50,8 @@ public static class PublicListingsEndpoints
                                     Price = listing.Price,
                                     OriginalCurrencyCode = listing.OriginalCurrencyCode,
                                     Mileage = listing.Mileage,
-                                    FuelType = listing.FuelType.ToString(),
-                                    Transmission = listing.Transmission.ToString(),
+                                    FuelType = listing.FuelType?.ToString(),
+                                    Transmission = listing.Transmission?.ToString(),
                                     Location = listing.Location,
                                     ImageUrl = listing.ImageUrl,
                                     IsNew = listing.IsNew
@@ -78,7 +78,7 @@ public static class PublicListingsEndpoints
 
         public required string Model { get; init; }
 
-        public required string TrimOrVariant { get; init; }
+        public string? TrimOrVariant { get; init; }
 
         public required int Year { get; init; }
 
@@ -88,13 +88,13 @@ public static class PublicListingsEndpoints
 
         public required int Mileage { get; init; }
 
-        public required FuelType FuelType { get; init; }
+        public FuelType? FuelType { get; init; }
 
-        public required TransmissionType Transmission { get; init; }
+        public TransmissionType? Transmission { get; init; }
 
-        public required string Location { get; init; }
+        public string? Location { get; init; }
 
-        public required string ImageUrl { get; init; }
+        public string? ImageUrl { get; init; }
 
         public required bool IsNew { get; init; }
     }

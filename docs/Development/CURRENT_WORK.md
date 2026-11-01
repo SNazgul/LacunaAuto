@@ -7,8 +7,8 @@ Start the listings browsing vertical slice while keeping the accepted browsing U
 ## Now
 
 - [x] Define the minimum listing/domain data required by the accepted Home, Listings, and Listing Details UI.
-- [x] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
-- [x] Add the minimal public browsing API needed by the existing UI.
+- [ ] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
+- [ ] Add the minimal public browsing API needed by the existing UI.
 - [ ] Connect the existing browsing UI to the real API without redesigning accepted screens.
 
 Keep this as a small end-to-end slice. Do not start authentication, listing management, photo upload/storage implementation, chat, or Hybrid work in this task.
@@ -27,7 +27,11 @@ After the first real listings browsing slice is accepted:
   - Added EF Core + PostgreSQL persistence in `LacunaAuto.Data` with explicit mapping (`vehicle_listings` table), constraints, and index for published browsing reads; first migration created: `InitialListingsBrowsing`.
   - Added Development-only idempotent seeding aligned with the current 8 `VehicleListingSeedData` records (same IDs/order, image URLs, and `IsNew` values; all published for browsing).
   - Added public `GET /api/listings` (anonymous, published-only, `AsNoTracking`, deterministic `OrderBy(Id)`, DTO output for current listing cards, OpenAPI metadata); removed `/weatherforecast` sample endpoint.
-  - Added focused API tests for published/unpublished behavior and deterministic order/value checks (`LacunaAuto.Api.Test`): **2/2 passed**.
+  - Added focused API tests for published/unpublished behavior, deterministic order/value checks, and null-optional-field serialization (`LacunaAuto.Api.Test`): **4/4 passed**.
+  - Added focused Development seeder idempotency coverage (run seeder twice without duplicate rows); this test does not claim PostgreSQL identity-sequence verification.
+  - Status distinction:
+    - **Implemented and focused tests passed** for API/domain/persistence wiring.
+    - **Live PostgreSQL verification is still pending** in this environment for migration apply + development seeding + runtime `GET /api/listings` against a running PostgreSQL instance.
 - E2E config-test URL-override fix, verified green at **37/37** browser tests plus 2 expected-failure fault-injection checks:
   - `specs/runner-config.spec.ts` hardcoded `expect(baseURL).toBe("http://localhost:5032/")`, which failed for a valid `E2E_BASE_URL` override. The expectation now derives from `E2E_BASE_URL` through the shared `APP_BASE_URL` helper constant (same default as the config), so `E2E_BASE_URL=http://localhost:5132/` passes and reports that origin. `actionTimeout = 15000`, `navigationTimeout = 30000` and `locale = en-US` remain hardcoded.
 - E2E follow-up review pass (two findings), verified green at **37/37** browser tests plus 2 expected-failure fault-injection checks:

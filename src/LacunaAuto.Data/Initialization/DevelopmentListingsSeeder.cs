@@ -27,6 +27,18 @@ public static class DevelopmentListingsSeeder
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (dbContext.Database.IsNpgsql())
+        {
+            await dbContext.Database.ExecuteSqlRawAsync(
+                """
+                SELECT setval(
+                    pg_get_serial_sequence('vehicle_listings', 'id'),
+                    GREATEST(COALESCE((SELECT MAX(id) FROM vehicle_listings), 0), 1),
+                    true);
+                """,
+                cancellationToken);
+        }
     }
 
     private static void MapListingValues(VehicleListing target, VehicleListing source)

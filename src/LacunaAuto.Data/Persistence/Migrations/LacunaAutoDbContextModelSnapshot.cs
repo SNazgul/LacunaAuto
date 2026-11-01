@@ -31,13 +31,11 @@ namespace LacunaAuto.Data.Persistence.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("FuelType")
-                        .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")
                         .HasColumnName("fuel_type");
 
                     b.Property<string>("ImageUrl")
-                        .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)")
                         .HasColumnName("image_url");
@@ -53,7 +51,6 @@ namespace LacunaAuto.Data.Persistence.Migrations
                         .HasColumnName("is_published");
 
                     b.Property<string>("Location")
-                        .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("location");
@@ -84,13 +81,11 @@ namespace LacunaAuto.Data.Persistence.Migrations
                         .HasColumnName("price");
 
                     b.Property<string>("Transmission")
-                        .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)")
                         .HasColumnName("transmission");
 
                     b.Property<string>("TrimOrVariant")
-                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("trim_or_variant");

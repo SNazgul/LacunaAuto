@@ -8,7 +8,7 @@ public sealed class VehicleListing
 
     public string Model { get; set; } = string.Empty;
 
-    public string TrimOrVariant { get; set; } = string.Empty;
+    public string? TrimOrVariant { get; set; }
 
     public int Year { get; set; }
 
@@ -18,13 +18,13 @@ public sealed class VehicleListing
 
     public int Mileage { get; set; }
 
-    public FuelType FuelType { get; set; }
+    public FuelType? FuelType { get; set; }
 
-    public TransmissionType Transmission { get; set; }
+    public TransmissionType? Transmission { get; set; }
 
-    public string Location { get; set; } = string.Empty;
+    public string? Location { get; set; }
 
-    public string ImageUrl { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
 
     public bool IsNew { get; set; }
 
