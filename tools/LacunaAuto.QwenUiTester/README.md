@@ -21,15 +21,15 @@ exact Git revision
     -> structured Markdown review
 ```
 
-The local loop has been verified. The next integration layer is provided by
-`.github/workflows/qwen-ui-review.yml`: an owner-triggered GitHub PR workflow
-checks out the exact same-repository PR head SHA on a dedicated Windows
-self-hosted runner, executes this tester, uploads the review artifacts, and
-publishes the report back to the PR from a separate GitHub-hosted job.
+The local loop and GitHub integration are verified. The
+`.github/workflows/qwen-ui-review.yml` workflow automatically reviews
+OWNER-authored same-repository PRs on GitHub-hosted Windows, checks out the exact
+PR head SHA, executes this tester, uploads the review artifacts, publishes the
+detailed report back to the PR, and creates a `Qwen UI Review` Check Run on the
+exact tested SHA.
 
-The workflow intentionally does **not** create a GitHub Check Run yet. First
-verify the real self-hosted runner and PR-comment loop; add formal check/status
-reporting as a separate follow-up slice.
+The slash-command path remains available for an explicit rerun or custom
+acceptance criteria.
 
 The runner also does **not** create adaptive Playwright probes yet. Qwen may
 rerun existing focused specs and must explicitly report new behavior that
@@ -193,6 +193,11 @@ qwen-ui-review.json
 ```
 
 If Qwen consumes the configured tool-turn budget without returning a final answer, the runner issues one final no-tools, low-reasoning request using the evidence already collected instead of failing the whole review.
+
+If a non-empty final response violates the required first-line verdict contract,
+the runner makes one additional no-tools, low-reasoning **format-repair** request
+that must preserve the existing findings and verdict. If that repair still does
+not produce a valid first line, classification remains fail-safe `BLOCKED`.
 
 The model report must return one of:
 

@@ -87,11 +87,17 @@ internal sealed class StrataAgent : IDisposable
                     }
 
                     Console.WriteLine("Qwen        : final recovery response received.");
-                    return recoveredContent;
+                    return await EnsureStructuredFinalAsync(
+                        recoveryMessages,
+                        recoveredContent,
+                        "empty-message recovery");
                 }
 
                 Console.WriteLine("Qwen        : final response received.");
-                return assistantContent;
+                return await EnsureStructuredFinalAsync(
+                    messages,
+                    assistantContent,
+                    "normal final response");
             }
 
             messages.Add(CloneAssistantMessage(responseMessage));
@@ -149,7 +155,68 @@ internal sealed class StrataAgent : IDisposable
         }
 
         Console.WriteLine("Qwen        : final budget-recovery response received.");
-        return finalContent;
+        return await EnsureStructuredFinalAsync(
+            finalMessages,
+            finalContent,
+            "tool-budget recovery");
+    }
+
+    private async Task<string> EnsureStructuredFinalAsync(
+        IReadOnlyCollection<JsonObject> priorMessages,
+        string content,
+        string source)
+    {
+        if (HasRequiredResultFirstLine(content))
+            return content;
+
+        Console.WriteLine(
+            $"Qwen        : {source} violated the Result-line contract; requesting one format repair.");
+
+        var repairMessages = priorMessages
+            .Select(message => (JsonObject)message.DeepClone())
+            .ToList();
+
+        repairMessages.Add(Message("assistant", content));
+        repairMessages.Add(Message(
+            "user",
+            "Your previous final review violated the output contract because its first non-empty line was not exactly " +
+            "Result: PASS, Result: FAIL, or Result: BLOCKED. Do not investigate further and do not change the findings or verdict. " +
+            "Return the same review now, preserving its substance, but make the first non-empty line exactly the matching Result line. " +
+            "Do not call tools and do not include hidden reasoning."));
+
+        var repaired = await SendAsync(
+            repairMessages,
+            _tools!.GetDefinitions(),
+            JsonValue.Create("none"),
+            reasoningEffort: "low",
+            maxTokens: Math.Min(_options.MaxTokens, 8000));
+
+        var repairedContent = GetStringOrNull(repaired.Message["content"]);
+
+        if (!string.IsNullOrWhiteSpace(repairedContent) &&
+            HasRequiredResultFirstLine(repairedContent))
+        {
+            Console.WriteLine("Qwen        : final Result-line format repair succeeded.");
+            return repairedContent;
+        }
+
+        Console.WriteLine(
+            "Qwen        : final Result-line format repair did not satisfy the contract; preserving the original response for fail-safe BLOCKED classification.");
+
+        return content;
+    }
+
+    private static bool HasRequiredResultFirstLine(string content)
+    {
+        var firstNonEmptyLine = content
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .FirstOrDefault(line => line.Length > 0);
+
+        return firstNonEmptyLine is
+            "Result: PASS" or
+            "Result: FAIL" or
+            "Result: BLOCKED";
     }
 
     public async Task<string> RunSmokeAsync()
