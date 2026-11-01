@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace LacunaAuto.QwenUiTester;
 
@@ -399,13 +398,18 @@ A PASS means no material defect was found within the verified scope and the norm
 
     private static string ParseModelStatus(string modelReview)
     {
-        var match = Regex.Match(
-            modelReview,
-            @"(?im)^Result:\s*(PASS|FAIL|BLOCKED)\s*$");
+        var firstNonEmptyLine = modelReview
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .FirstOrDefault(line => line.Length > 0);
 
-        return match.Success
-            ? match.Groups[1].Value.ToUpperInvariant()
-            : "BLOCKED";
+        return firstNonEmptyLine switch
+        {
+            "Result: PASS" => "PASS",
+            "Result: FAIL" => "FAIL",
+            "Result: BLOCKED" => "BLOCKED",
+            _ => "BLOCKED",
+        };
     }
 
     private static string ResolveFinalStatus(
