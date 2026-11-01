@@ -1,6 +1,8 @@
 name: Qwen UI Review
 
 on:
+  pull_request:
+    types: [opened, reopened, synchronize]
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -15,8 +17,8 @@ on:
         type: string
 
 concurrency:
-  group: qwen-ui-review-${{ github.event_name }}-${{ github.event.issue.number || inputs.pr_number }}
-  cancel-in-progress: false
+  group: qwen-ui-review-${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+  cancel-in-progress: true
 
 jobs:
   prepare:
@@ -24,6 +26,12 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.author_association == 'OWNER' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
         github.event.issue.pull_request &&
         github.event.comment.author_association == 'OWNER' &&
         startsWith(github.event.comment.body, '/qwen-ui-review')
@@ -47,9 +55,12 @@ jobs:
         with:
           script: |
             const isComment = context.eventName === 'issue_comment';
+            const isPullRequest = context.eventName === 'pull_request';
             const prNumber = isComment
               ? context.payload.issue.number
-              : Number(context.payload.inputs?.pr_number);
+              : isPullRequest
+                ? context.payload.pull_request.number
+                : Number(context.payload.inputs?.pr_number);
 
             if (!Number.isInteger(prNumber) || prNumber <= 0) {
               core.setFailed('A valid PR number is required.');
@@ -95,6 +106,8 @@ jobs:
                 .slice(1)
                 .join('\n')
                 .trim();
+            } else if (isPullRequest) {
+              acceptance = '';
             } else {
               acceptance = (context.payload.inputs?.acceptance ?? '').trim();
             }
