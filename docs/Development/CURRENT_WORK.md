@@ -96,8 +96,6 @@ After the first real listings browsing slice is accepted:
 
 `dotnet restore LacunaAuto.sln`, `dotnet build LacunaAuto.sln`, and `dotnet test LacunaAuto.sln` currently fail in this environment with `NETSDK1147` because required MAUI Android workloads are not installed for `LacunaAuto.Hybrid` / `LacunaAuto.Frontend` target frameworks.
 
-Local PostgreSQL container verification is blocked in this environment because Docker/Docker Compose CLI is unavailable (`docker` and `docker-compose` commands not found). As a result, migration application to a running local PostgreSQL container and live `GET /api/listings` verification against that container were not completed in this run.
-
 The previously documented `dotnet test LacunaAuto.sln` VSTest blocker did **not** reproduce: on 2026-10-19 with .NET SDK `10.0.401`, `dotnet test LacunaAuto.sln` reported `Test run summary: Passed!` for both `LacunaAuto.Api.Test` and `LacunaAuto.UI.Shared.Tests` (0 failed). No test-infrastructure change was made.
 
 The host `Components/Pages/NotFound.razor` (`src/LacunaAuto.Web/LacunaAuto.Web/`) was **removed**: with the supported `NotFoundPage="typeof(NotFoundPage)"` router attribute, the client page `LacunaAuto.Web.Client/Components/Pages/NotFoundPage.razor` owns `@page "/not-found"` and is the endpoint that `UseStatusCodePagesWithReExecute("/not-found")` re-executes. Keeping both pages registered the same route and produced an AmbiguousMatchException. Any future 404 content change belongs in the client `NotFoundPage.razor`.
