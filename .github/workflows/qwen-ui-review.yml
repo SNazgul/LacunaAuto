@@ -267,6 +267,7 @@ jobs:
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     permissions:
+      checks: write
       contents: read
       issues: write
       pull-requests: write
@@ -276,6 +277,61 @@ jobs:
         with:
           name: qwen-ui-review-${{ github.run_id }}
           path: qwen-review
+
+      - name: Publish Qwen check run
+        uses: actions/github-script@v7
+        env:
+          HEAD_SHA: ${{ needs.prepare.outputs.head_sha }}
+          RUNNER_EXIT: ${{ needs.review.outputs.runner_exit }}
+          MODEL_RESULT: ${{ needs.review.outputs.model_result }}
+          REVIEW_JOB_RESULT: ${{ needs.review.result }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('fs');
+
+            const result = process.env.MODEL_RESULT || 'ERROR';
+            const conclusion =
+              result === 'PASS' ? 'success' :
+              result === 'BLOCKED' ? 'neutral' :
+              'failure';
+
+            const runUrl =
+              context.serverUrl + '/' + context.repo.owner + '/' +
+              context.repo.repo + '/actions/runs/' + context.runId;
+
+            const reportPath = 'qwen-review/qwen-ui-review.md';
+            let report = fs.readFileSync(reportPath, 'utf8').replace(/^\uFEFF/, '');
+
+            if (report.length > 60000) {
+              report = report.slice(0, 60000) +
+                '\n\n[Check output truncated; use the workflow artifact or PR comment for the complete review.]';
+            }
+
+            const summary = [
+              'Result: **' + result + '**',
+              '',
+              '- Tested SHA: `' + process.env.HEAD_SHA + '`',
+              '- Runner exit: `' + (process.env.RUNNER_EXIT || 'unknown') + '`',
+              '- Review job: `' + process.env.REVIEW_JOB_RESULT + '`',
+              '- Workflow run: ' + runUrl
+            ].join('\n');
+
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Qwen UI Review',
+              head_sha: process.env.HEAD_SHA,
+              status: 'completed',
+              conclusion,
+              details_url: runUrl,
+              external_id: 'qwen-ui-review-' + context.runId,
+              output: {
+                title: 'Qwen UI Review - ' + result,
+                summary,
+                text: report
+              }
+            });
 
       - name: Post Qwen review comment
         uses: actions/github-script@v7

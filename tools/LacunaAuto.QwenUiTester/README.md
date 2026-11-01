@@ -275,17 +275,32 @@ The workflow:
    `max-tool-turns=12`;
 6. preserves `e2e/qwen-reviews/` as a 14-day workflow artifact;
 7. posts the complete or bounded review back to the PR;
-8. fails the self-hosted review job for FAIL, BLOCKED, or integration failure.
+8. fails the review job for FAIL, BLOCKED, or integration failure.
 
-At this stage the PR comment and workflow result are the authoritative GitHub
-surfaces. A dedicated PASS / FAIL / BLOCKED Check Run is the next automation
-slice after the first real self-hosted execution is verified.
+The workflow publishes two GitHub surfaces for each completed review:
+
+- a detailed PR comment containing the bounded Markdown report;
+- a `Qwen UI Review` Check Run attached to the **exact tested PR head SHA**.
+
+Check Run conclusions are mapped as follows:
+
+| Qwen result | Check conclusion |
+| --- | --- |
+| `PASS` | `success` |
+| `FAIL` | `failure` |
+| `BLOCKED` | `neutral` |
+| integration/error | `failure` |
+
+This exact-SHA binding is important because an `issue_comment` workflow itself
+runs from the default-branch workflow revision, while the Qwen runner checks out
+and reviews the PR head SHA explicitly.
 
 ## Next stage
 
-After the first real GitHub-triggered review is verified:
+After the exact-SHA Check Run is verified on a real PR:
 
-1. expose PASS / FAIL / BLOCKED as a GitHub Check Run tied to the tested SHA;
-2. decide whether Qwen review should remain slash-triggered or also run
+1. decide whether Qwen review should remain slash-triggered or also run
    automatically for selected PR changes;
+2. decide whether branch protection should require the `Qwen UI Review` check
+   for selected branches/workflows;
 3. only then consider controlled temporary adaptive Playwright probes.
