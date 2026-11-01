@@ -1,81 +1,28 @@
-Applied Slice 2.1A review fixes on `feature/listings-browsing-2-1` without broadening scope.
+Updated Slice 2.1A documentation on `feature/listings-browsing-2-1` to record completed live PostgreSQL verification.
 
-## What was fixed
+## What changed
 
-### 1) PostgreSQL identity sequence handling after Development seed IDs 1..8
+- Updated `docs/Development/CURRENT_WORK.md`:
+  - Marked as completed in **Now**:
+    - Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
+    - Add the minimal public browsing API needed by the existing UI.
+  - Replaced the previous "live verification pending" status with completed manual verification evidence against PostgreSQL 17 in Docker on Windows:
+    - `docker compose up -d postgres` succeeded.
+    - PostgreSQL reachable on `localhost:5432`.
+    - `dotnet ef database update` succeeded for `InitialListingsBrowsing`.
+    - API started in Development and Development seeder executed successfully.
+    - `GET http://localhost:5132/api/listings` returned HTTP 200 with exactly 8 seeded listings (IDs 1..8) in deterministic order.
+    - PostgreSQL query confirmed `MAX(id) = 8`.
+    - `vehicle_listings_id_seq`: `last_value = 8`, `is_called = true`; next normal identity-generated listing ID is `9`.
+- Updated this file (`docs/CURRENT_WORK/Agent_Response.md`) with the current task report only.
 
-- Updated `DevelopmentListingsSeeder` to keep explicit IDs `1..8` and remain idempotent.
-- Added PostgreSQL-specific sequence synchronization after seed upsert/save:
-  - runs only when provider is Npgsql (`Database.IsNpgsql()`),
-  - executes `setval(pg_get_serial_sequence(...), max(id), true)` logic so the next generated ID is greater than current max.
-- No `SortOrder` introduced.
-- Normal DB-generated identity IDs remain enabled.
+## Scope guardrails honored
 
-File:
-- `src/LacunaAuto.Data/Initialization/DevelopmentListingsSeeder.cs`
+- Did not start Slice 2.1B.
+- Did not change product scope.
+- Did not open a PR.
 
-### 2) Nullability aligned with accepted UI listing contract
+## Validation
 
-Optional (nullable) across domain/persistence/API:
-- `TrimOrVariant`
-- `FuelType`
-- `Transmission`
-- `Location`
-- `ImageUrl`
+- Documentation-only update; no build/test commands were run.
 
-Still required:
-- `Id`, `Make`, `Model`, `Year`, `Price`, `OriginalCurrencyCode`, `Mileage`, `IsNew`, `IsPublished`
-
-Updated:
-- Core model:
-  - `src/LacunaAuto.Core/Listings/VehicleListing.cs`
-- EF configuration:
-  - `src/LacunaAuto.Data/Persistence/Configurations/VehicleListingEntityConfiguration.cs`
-- API DTO/projection:
-  - `src/LacunaAuto.Api/Contracts/Listings/PublicListingCardDto.cs`
-  - `src/LacunaAuto.Api/Endpoints/PublicListingsEndpoints.cs`
-
-### 3) Initial migration regenerated (not a second corrective migration)
-
-- Removed previous initial migration and regenerated the initial migration after the nullability fixes.
-- Current initial migration files:
-  - `src/LacunaAuto.Data/Persistence/Migrations/20261101155639_InitialListingsBrowsing.cs`
-  - `src/LacunaAuto.Data/Persistence/Migrations/20261101155639_InitialListingsBrowsing.Designer.cs`
-  - `src/LacunaAuto.Data/Persistence/Migrations/LacunaAutoDbContextModelSnapshot.cs`
-
-### 4) Focused test coverage additions
-
-- Added API test to verify null optional fields serialize as `null` in `GET /api/listings`.
-- Added focused seeder idempotency test to verify running `DevelopmentListingsSeeder` twice does not duplicate rows.
-- Existing published/unpublished/order tests retained.
-
-File:
-- `test/LacunaAuto.Api.Test/PublicListingsEndpointTests.cs`
-
-## Documentation correction
-
-Updated `docs/Development/CURRENT_WORK.md` to distinguish:
-- implemented + focused tests passed, versus
-- live PostgreSQL migration/seed/API verification still pending.
-
-The `Now` checklist now keeps PostgreSQL persistence/data and minimal public API items unverified until exercised against running PostgreSQL.
-
-## Validation run for this fix
-
-Focused validation executed:
-- `dotnet build src/LacunaAuto.Api/LacunaAuto.Api.csproj` ✅
-- `dotnet test test/LacunaAuto.Api.Test/LacunaAuto.Api.Test.csproj` ✅
-
-Test summary:
-- 4/4 passed.
-
-## PostgreSQL live verification status (important)
-
-- Sequence fix is implemented in code but **not live-verified** against a running PostgreSQL instance in this environment.
-- Docker CLI remains unavailable here, so local PostgreSQL container startup/verification is still blocked.
-
-## Scope confirmation
-
-- No PR opened.
-- No merge performed.
-- Changes remain strictly inside Slice 2.1A backend/persistence/test/docs scope.
