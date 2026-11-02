@@ -6,9 +6,26 @@ namespace LacunaAuto.QwenUiTester;
 internal static class Program
 {
     private const string FullRegressionReportFileName = "qwen-full-regression-report.json";
+    private const string FocusedBackendTestProjectPath = @"test\LacunaAuto.Api.Test\LacunaAuto.Api.Test.csproj";
+    private const string FocusedBackendTestCommand = $"dotnet test {FocusedBackendTestProjectPath}";
+
+    private sealed record RuntimeTopologyEvidence(
+        bool ApiRuntimeAvailable,
+        string ApiRuntimeStatus,
+        bool WebRuntimeAvailable,
+        string WebRuntimeStatus,
+        bool TopologyReady);
+
+    private sealed record BackendTestEvidence(
+        bool Executed,
+        ProcessResult Result,
+        string Note);
 
     public static async Task<int> Main(string[] args)
     {
+        AppHost? apiHost = null;
+        AppHost? webHost = null;
+
         try
         {
             var options = RunnerOptions.Parse(args);
@@ -56,35 +73,77 @@ internal static class Program
             Console.WriteLine($"Repository : {repositoryRoot}");
             Console.WriteLine($"Base       : {options.BaseRef} ({baseSha})");
             Console.WriteLine($"Head       : {options.HeadRef} ({currentHead})");
-            Console.WriteLine($"App URL    : {options.AppBaseUrl}");
+            Console.WriteLine($"Web URL    : {options.WebBaseUrl}");
+            Console.WriteLine($"API URL    : {options.ApiBaseUrl}");
+            Console.WriteLine($"API req    : {options.ApiRequired}");
+            Console.WriteLine($"Backend    : {options.BackendRelevant}");
             Console.WriteLine($"STRATA     : {options.ChatCompletionsUrl}");
-            Console.WriteLine($"Auth       : {(string.IsNullOrWhiteSpace(options.ApiKey) ? "none" : "Authorization: Bearer <configured>")}");
+            Console.WriteLine($"Auth       : {(string.IsNullOrWhiteSpace(options.ApiKey) ? "none" : "Authorization: ******")}");
             Console.WriteLine($"Reasoning  : {options.ReasoningEffort}");
             Console.WriteLine($"Model      : {options.Model}");
             Console.WriteLine();
 
-            await using var appHost = await AppHost.EnsureRunningAsync(
-                repositoryRoot,
-                options.AppBaseUrl,
-                options.ReuseRunningApp);
+            var apiRuntime = await EnsureApiRuntimeAsync(options, repositoryRoot);
+            apiHost = apiRuntime.Host;
 
-            Console.WriteLine(
-                appHost.ReusedExistingServer
-                    ? "Application: reusing explicitly authorized running server."
-                    : "Application: runner started LacunaAuto.Web.");
+            (AppHost? Host, bool Available, string Status) webRuntime;
+            if (apiRuntime.Available || !options.ApiRequired)
+            {
+                webRuntime = await EnsureWebRuntimeAsync(options, repositoryRoot);
+                webHost = webRuntime.Host;
+            }
+            else
+            {
+                webRuntime = (
+                    Host: null,
+                    Available: false,
+                    Status: "Skipped because required API runtime was unavailable.");
+            }
 
-            var regression = options.SkipRegression
-                ? new ProcessResult(
-                    ExitCode: 0,
-                    StandardOutput: "Regression run skipped by --skip-regression.",
-                    StandardError: string.Empty,
-                    TimedOut: false)
-                : await RunFullRegressionAsync(e2eDirectory, options.AppBaseUrl);
+            var topologyEvidence = new RuntimeTopologyEvidence(
+                ApiRuntimeAvailable: apiRuntime.Available,
+                ApiRuntimeStatus: apiRuntime.Status,
+                WebRuntimeAvailable: webRuntime.Available,
+                WebRuntimeStatus: webRuntime.Status,
+                TopologyReady: webRuntime.Available && (apiRuntime.Available || !options.ApiRequired));
 
-            if (!options.SkipRegression)
+            Console.WriteLine($"API runtime: {topologyEvidence.ApiRuntimeStatus}");
+            Console.WriteLine($"Web runtime: {topologyEvidence.WebRuntimeStatus}");
+            Console.WriteLine($"Topology   : {(topologyEvidence.TopologyReady ? "ready" : "unavailable")}");
+            Console.WriteLine();
+
+            var regression = topologyEvidence.TopologyReady
+                ? options.SkipRegression
+                    ? new ProcessResult(
+                        ExitCode: 0,
+                        StandardOutput: "Regression run skipped by --skip-regression.",
+                        StandardError: string.Empty,
+                        TimedOut: false)
+                    : await RunFullRegressionAsync(e2eDirectory, options.WebBaseUrl)
+                : new ProcessResult(
+                    ExitCode: -1,
+                    StandardOutput: "Regression run skipped because required runtime topology was unavailable.",
+                    StandardError: $"API runtime: {topologyEvidence.ApiRuntimeStatus}\nWeb runtime: {topologyEvidence.WebRuntimeStatus}",
+                    TimedOut: false);
+
+            if (topologyEvidence.TopologyReady && !options.SkipRegression)
                 PreserveFullRegressionReport(e2eDirectory, fullRegressionReportPath);
 
             Console.WriteLine($"Regression : exit {regression.ExitCode}, timeout={regression.TimedOut}");
+
+            var backendTestEvidence = await CollectBackendTestEvidenceAsync(
+                repositoryRoot,
+                options.BackendRelevant);
+
+            Console.WriteLine($"Backend test executed: {backendTestEvidence.Executed}");
+            if (backendTestEvidence.Executed)
+            {
+                Console.WriteLine($"Backend test exit    : {backendTestEvidence.Result.ExitCode}, timeout={backendTestEvidence.Result.TimedOut}");
+            }
+            else
+            {
+                Console.WriteLine($"Backend test status  : {backendTestEvidence.Note}");
+            }
 
             if (options.RegressionOnly)
             {
@@ -93,6 +152,9 @@ internal static class Program
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine(Limit(regression.CombinedOutput, 40_000).TrimEnd());
                 Console.WriteLine("----------------------------------------");
+
+                if (options.ApiRequired && !topologyEvidence.TopologyReady)
+                    return 3;
 
                 return regression.ExitCode == 0 && !regression.TimedOut ? 0 : 2;
             }
@@ -107,11 +169,24 @@ internal static class Program
                 Console.WriteLine();
             }
 
+            if (backendTestEvidence.Executed &&
+                (backendTestEvidence.Result.ExitCode != 0 || backendTestEvidence.Result.TimedOut))
+            {
+                Console.WriteLine();
+                Console.WriteLine("Focused backend test output:");
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine(Limit(backendTestEvidence.Result.CombinedOutput, 40_000).TrimEnd());
+                Console.WriteLine("----------------------------------------");
+                Console.WriteLine();
+            }
+
             var tools = new ToolRegistry(
                 repositoryRoot,
                 options.BaseRef,
                 options.HeadRef,
-                options.AppBaseUrl,
+                options.WebBaseUrl,
+                options.ApiBaseUrl,
+                topologyEvidence.ApiRuntimeAvailable,
                 fullRegressionReportPath);
 
             var systemPrompt = BuildSystemPrompt(repositoryRoot);
@@ -121,16 +196,33 @@ internal static class Program
                 currentHead,
                 workingTreeDirty,
                 diffStat,
+                topologyEvidence,
+                backendTestEvidence,
                 regression);
 
-            using var agent = new StrataAgent(options, tools);
-            var modelReview = await agent.RunAsync(systemPrompt, userPrompt);
+            string modelReview;
+            if (options.ApiRequired && !topologyEvidence.TopologyReady)
+            {
+                modelReview = BuildTopologyBlockedReview(
+                    topologyEvidence,
+                    backendTestEvidence,
+                    regression,
+                    options.SkipRegression);
+            }
+            else
+            {
+                using var agent = new StrataAgent(options, tools);
+                modelReview = await agent.RunAsync(systemPrompt, userPrompt);
+            }
 
             var modelStatus = ParseModelStatus(modelReview);
             var finalStatus = ResolveFinalStatus(
                 modelStatus,
                 regression,
-                options.SkipRegression);
+                options.SkipRegression,
+                topologyEvidence,
+                backendTestEvidence,
+                options.ApiRequired);
 
             var reviewPath = Path.Combine(artifactDirectory, "qwen-ui-review.md");
             var metadataPath = Path.Combine(artifactDirectory, "qwen-ui-review.json");
@@ -140,6 +232,8 @@ internal static class Program
                 baseSha,
                 currentHead,
                 workingTreeDirty,
+                topologyEvidence,
+                backendTestEvidence,
                 regression,
                 finalStatus,
                 modelReview);
@@ -161,10 +255,21 @@ internal static class Program
                         model = options.Model,
                         chatCompletionsUrl = options.ChatCompletionsUrl,
                         reasoningEffort = options.ReasoningEffort,
-                        appBaseUrl = options.AppBaseUrl,
+                        webBaseUrl = options.WebBaseUrl,
+                        apiBaseUrl = options.ApiBaseUrl,
+                        apiRequired = options.ApiRequired,
+                        apiRuntimeAvailable = topologyEvidence.ApiRuntimeAvailable,
+                        apiRuntimeStatus = topologyEvidence.ApiRuntimeStatus,
+                        webRuntimeAvailable = topologyEvidence.WebRuntimeAvailable,
+                        webRuntimeStatus = topologyEvidence.WebRuntimeStatus,
+                        topologyReady = topologyEvidence.TopologyReady,
                         regressionExitCode = regression.ExitCode,
                         regressionTimedOut = regression.TimedOut,
                         regressionSkipped = options.SkipRegression,
+                        backendRelevant = options.BackendRelevant,
+                        focusedBackendTestsExecuted = backendTestEvidence.Executed,
+                        focusedBackendTestsExitCode = backendTestEvidence.Executed ? backendTestEvidence.Result.ExitCode : (int?)null,
+                        focusedBackendTestsTimedOut = backendTestEvidence.Executed ? backendTestEvidence.Result.TimedOut : (bool?)null,
                         workingTreeDirty,
                         generatedAtUtc = DateTimeOffset.UtcNow,
                         reviewPath,
@@ -192,6 +297,89 @@ internal static class Program
             Console.Error.WriteLine($"Qwen UI Tester failed: {exception.Message}");
             return 10;
         }
+        finally
+        {
+            if (webHost is not null)
+                await webHost.DisposeAsync();
+
+            if (apiHost is not null)
+                await apiHost.DisposeAsync();
+        }
+    }
+
+    private static async Task<(AppHost? Host, bool Available, string Status)> EnsureApiRuntimeAsync(
+        RunnerOptions options,
+        string repositoryRoot)
+    {
+        try
+        {
+            var host = await AppHost.EnsureApiRunningAsync(
+                repositoryRoot,
+                options.ApiBaseUrl,
+                options.ReuseRunningApi);
+
+            var status = host.ReusedExistingServer
+                ? "Available (reused explicitly authorized running API server)."
+                : "Available (runner started LacunaAuto.Api).";
+
+            return (host, true, status);
+        }
+        catch (Exception exception)
+        {
+            return (null, false, $"{exception.GetType().Name}: {exception.Message}");
+        }
+    }
+
+    private static async Task<(AppHost? Host, bool Available, string Status)> EnsureWebRuntimeAsync(
+        RunnerOptions options,
+        string repositoryRoot)
+    {
+        try
+        {
+            var host = await AppHost.EnsureWebRunningAsync(
+                repositoryRoot,
+                options.WebBaseUrl,
+                options.ReuseRunningApp);
+
+            var status = host.ReusedExistingServer
+                ? "Available (reused explicitly authorized running Web server)."
+                : "Available (runner started LacunaAuto.Web).";
+
+            return (host, true, status);
+        }
+        catch (Exception exception)
+        {
+            return (null, false, $"{exception.GetType().Name}: {exception.Message}");
+        }
+    }
+
+    private static async Task<BackendTestEvidence> CollectBackendTestEvidenceAsync(
+        string repositoryRoot,
+        bool backendRelevant)
+    {
+        if (!backendRelevant)
+        {
+            return new BackendTestEvidence(
+                Executed: false,
+                Result: new ProcessResult(
+                    ExitCode: 0,
+                    StandardOutput: "Focused backend tests were skipped because backend-relevant diff classification is false.",
+                    StandardError: string.Empty,
+                    TimedOut: false),
+                Note: "Skipped because backend-relevant diff classification is false.");
+        }
+
+        Console.WriteLine("Running focused backend test project...");
+        var result = await ProcessRunner.RunAsync(
+            "dotnet",
+            ["test", FocusedBackendTestProjectPath],
+            repositoryRoot,
+            TimeSpan.FromMinutes(6));
+
+        return new BackendTestEvidence(
+            Executed: true,
+            Result: result,
+            Note: $"Executed: {FocusedBackendTestCommand}");
     }
 
     private static async Task<int> RunStrataSmokeAsync(RunnerOptions options)
@@ -206,7 +394,7 @@ internal static class Program
         Console.WriteLine($"Endpoint   : {options.ChatCompletionsUrl}");
         Console.WriteLine($"Model      : {options.Model}");
         Console.WriteLine($"Reasoning  : {options.ReasoningEffort}");
-        Console.WriteLine("Auth       : Authorization: Bearer <configured>");
+        Console.WriteLine("Auth       : Authorization: ******");
         Console.WriteLine();
 
         using var agent = new StrataAgent(options);
@@ -223,7 +411,7 @@ internal static class Program
 
     private static async Task<ProcessResult> RunFullRegressionAsync(
         string e2eDirectory,
-        string appBaseUrl)
+        string webBaseUrl)
     {
         Console.WriteLine("Running full Playwright regression suite...");
 
@@ -238,7 +426,7 @@ internal static class Program
             TimeSpan.FromMinutes(8),
             new Dictionary<string, string?>
             {
-                ["E2E_BASE_URL"] = appBaseUrl,
+                ["E2E_BASE_URL"] = webBaseUrl,
             });
     }
 
@@ -281,6 +469,8 @@ You are a tester/reviewer, not an implementation agent.
 - A failed regression run prevents PASS.
 - Report product defects, test defects, environment blockers, and anything not verified separately.
 - Keep conclusions tied to the exact tested SHA.
+- The HTTP tool requires an explicit target (`web` or `api`); never treat `/api/*` on `web` as API evidence.
+- If required runtime topology is unavailable, classify as BLOCKED and clearly list what was not verified.
 
 Repository rules:
 
@@ -308,9 +498,14 @@ Active verification skill:
         string testedSha,
         bool workingTreeDirty,
         string diffStat,
+        RuntimeTopologyEvidence topologyEvidence,
+        BackendTestEvidence backendTestEvidence,
         ProcessResult regression)
     {
         var regressionOutput = Limit(regression.CombinedOutput, 20_000);
+        var backendOutput = backendTestEvidence.Executed
+            ? Limit(backendTestEvidence.Result.CombinedOutput, 12_000)
+            : backendTestEvidence.Note;
 
         return $"""
 Perform an independent UI automation review of the exact revision below.
@@ -320,7 +515,18 @@ Base SHA: {baseSha}
 Head ref: {options.HeadRef}
 Tested SHA: {testedSha}
 Working tree dirty: {workingTreeDirty}
-Application origin: {options.AppBaseUrl}
+
+Web origin: {options.WebBaseUrl}
+Web runtime available: {topologyEvidence.WebRuntimeAvailable}
+Web runtime status: {topologyEvidence.WebRuntimeStatus}
+
+API origin: {options.ApiBaseUrl}
+API runtime required: {options.ApiRequired}
+API runtime available: {topologyEvidence.ApiRuntimeAvailable}
+API runtime status: {topologyEvidence.ApiRuntimeStatus}
+
+Authoritative topology ready: {topologyEvidence.TopologyReady}
+Backend-relevant diff classification: {options.BackendRelevant}
 
 Requested scope:
 {options.Scope}
@@ -331,22 +537,34 @@ Acceptance criteria:
 Changed-file summary:
 {diffStat}
 
-The runner already executed the normal Playwright regression suite before contacting you.
+The runner already attempted runtime setup and regression/test evidence collection before contacting you.
 
 Regression exit code: {regression.ExitCode}
 Regression timed out: {regression.TimedOut}
-Regression was skipped: {options.SkipRegression}
+Regression was skipped by flag: {options.SkipRegression}
+
+Focused backend test command: {FocusedBackendTestCommand}
+Focused backend tests executed: {backendTestEvidence.Executed}
+Focused backend tests exit code: {(backendTestEvidence.Executed ? backendTestEvidence.Result.ExitCode : null)}
+Focused backend tests timed out: {(backendTestEvidence.Executed ? backendTestEvidence.Result.TimedOut : null)}
 
 Regression command output:
 <REGRESSION_OUTPUT>
 {regressionOutput}
 </REGRESSION_OUTPUT>
 
-Use the available tools to inspect the locked diff, relevant source/specs, the preserved full regression JSON report, HTTP behavior, and focused existing Playwright specs when useful.
+Focused backend test output:
+<FOCUSED_BACKEND_TEST_OUTPUT>
+{backendOutput}
+</FOCUSED_BACKEND_TEST_OUTPUT>
+
+Use the available tools to inspect the locked diff, relevant source/specs, preserved regression report, explicit web/api HTTP behavior, and focused existing Playwright specs when useful.
 
 Do not broaden the task into unrelated implementation work.
 Do not treat the existing regression suite as sufficient proof for new behavior if the diff introduces behavior the suite does not cover.
 Because this runner version cannot author new adaptive probes, explicitly list any behavior that still requires a new test or human visual verification.
+Do not infer API behavior from web-target responses; use explicit target-aware tool calls.
+If required runtime topology is unavailable for material claims, classify that gap as BLOCKED/not verified rather than product FAIL from wrong-process probing.
 
 Your final response MUST be Markdown and its first non-empty line MUST be exactly one of:
 Result: PASS
@@ -365,11 +583,50 @@ A PASS means no material defect was found within the verified scope and the norm
 """;
     }
 
+    private static string BuildTopologyBlockedReview(
+        RuntimeTopologyEvidence topologyEvidence,
+        BackendTestEvidence backendTestEvidence,
+        ProcessResult regression,
+        bool regressionSkipped)
+    {
+        return $"""
+Result: BLOCKED
+
+## Regression
+- Required runtime topology was unavailable, so authoritative regression verification could not be completed.
+- Regression exit code: `{regression.ExitCode}`
+- Regression timed out: `{regression.TimedOut}`
+- Regression skipped by flag: `{regressionSkipped}`
+
+## Verified
+- API runtime required: `True`
+- API runtime available: `{topologyEvidence.ApiRuntimeAvailable}`
+- API runtime status: `{topologyEvidence.ApiRuntimeStatus}`
+- Web runtime available: `{topologyEvidence.WebRuntimeAvailable}`
+- Web runtime status: `{topologyEvidence.WebRuntimeStatus}`
+- Focused backend tests executed: `{backendTestEvidence.Executed}`
+- Focused backend tests exit code: `{(backendTestEvidence.Executed ? backendTestEvidence.Result.ExitCode : null)}`
+- Focused backend tests timed out: `{(backendTestEvidence.Executed ? backendTestEvidence.Result.TimedOut : null)}`
+
+## Findings
+- The required PostgreSQL/API/Web topology was not fully available, so the review cannot make authoritative runtime conclusions for this SHA.
+
+## Not verified
+- Runtime behavior requiring the required API+Web topology.
+- Any behavior that depends on a successful authoritative full Playwright regression run on this topology.
+
+## Recommendation
+Restore the required topology and rerun the review on the same tested SHA.
+""";
+    }
+
     private static string BuildWrappedReview(
         RunnerOptions options,
         string baseSha,
         string testedSha,
         bool workingTreeDirty,
+        RuntimeTopologyEvidence topologyEvidence,
+        BackendTestEvidence backendTestEvidence,
         ProcessResult regression,
         string finalStatus,
         string modelReview)
@@ -383,10 +640,21 @@ A PASS means no material defect was found within the verified scope and the norm
 - Model: `{options.Model}`
 - Reasoning effort: `{options.ReasoningEffort}`
 - STRATA endpoint: `{options.ChatCompletionsUrl}`
-- Application origin: `{options.AppBaseUrl}`
+- Web origin: `{options.WebBaseUrl}`
+- API origin: `{options.ApiBaseUrl}`
+- API runtime required: `{options.ApiRequired}`
+- API runtime available: `{topologyEvidence.ApiRuntimeAvailable}`
+- API runtime status: `{topologyEvidence.ApiRuntimeStatus}`
+- Web runtime available: `{topologyEvidence.WebRuntimeAvailable}`
+- Web runtime status: `{topologyEvidence.WebRuntimeStatus}`
+- Topology ready: `{topologyEvidence.TopologyReady}`
 - Regression exit code: `{regression.ExitCode}`
 - Regression timed out: `{regression.TimedOut}`
 - Regression skipped: `{options.SkipRegression}`
+- Backend-relevant diff classification: `{options.BackendRelevant}`
+- Focused backend tests executed: `{backendTestEvidence.Executed}`
+- Focused backend tests exit code: `{(backendTestEvidence.Executed ? backendTestEvidence.Result.ExitCode : null)}`
+- Focused backend tests timed out: `{(backendTestEvidence.Executed ? backendTestEvidence.Result.TimedOut : null)}`
 - Working tree dirty: `{workingTreeDirty}`
 - Generated UTC: `{DateTimeOffset.UtcNow:O}`
 
@@ -415,8 +683,21 @@ A PASS means no material defect was found within the verified scope and the norm
     private static string ResolveFinalStatus(
         string modelStatus,
         ProcessResult regression,
-        bool regressionSkipped)
+        bool regressionSkipped,
+        RuntimeTopologyEvidence topologyEvidence,
+        BackendTestEvidence backendTestEvidence,
+        bool apiRequired)
     {
+        if (apiRequired && !topologyEvidence.TopologyReady)
+            return "BLOCKED";
+
+        if (backendTestEvidence.Executed &&
+            (backendTestEvidence.Result.ExitCode != 0 || backendTestEvidence.Result.TimedOut) &&
+            string.Equals(modelStatus, "PASS", StringComparison.Ordinal))
+        {
+            return "BLOCKED";
+        }
+
         if (!regressionSkipped &&
             (regression.ExitCode != 0 || regression.TimedOut) &&
             string.Equals(modelStatus, "PASS", StringComparison.Ordinal))
