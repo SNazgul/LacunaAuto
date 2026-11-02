@@ -203,6 +203,10 @@ jobs:
         run: |
           .\.github\scripts\bootstrap-postgres-windows.ps1 -SuperuserPassword "root"
 
+      - name: Run focused UI and listings client tests
+        shell: pwsh
+        run: dotnet test --project test\LacunaAuto.UI.Shared.Tests\LacunaAuto.UI.Shared.Tests.csproj
+
       - name: Run Strata Qwen UI review
         id: qwen
         continue-on-error: true

@@ -1,0 +1,20 @@
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
+
+<div class="browsing-feedback" role="@(HasError ? "alert" : "status")">
+    <p>@Localizer[IsLoading ? "Loading" : HasError ? "ErrorLoadingContent" : "NoResultsFound"]</p>
+    @if (HasError)
+    {
+        <button type="button" @onclick="OnRetry">@Localizer["TryAgain"]</button>
+    }
+    else if (!IsLoading)
+    {
+        <a href="/">@Localizer["Home"]</a>
+    }
+</div>
+
+@code {
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public bool HasError { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+}

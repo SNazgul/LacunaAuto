@@ -1,13 +1,14 @@
 @page "/"
 @using LacunaAuto.UI.Shared.Components
-@using LacunaAuto.Web.Client.Data
+@implements IDisposable
+@inject ListingsClient BrowsingApi
 @using Microsoft.Extensions.Localization
 @inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
 @inject NavigationManager Navigation
 
 <PageTitle>Lacuna Auto</PageTitle>
 
-<div class="home-page">
+<div class="home-page" aria-busy="@(_isLoading ? "true" : "false")" data-lacuna-loading="@(_isLoading ? "true" : "false")">
     <header class="page-header">
         <div class="header-content">
             <h1 class="wordmark">Lacuna</h1>
@@ -39,9 +40,24 @@
     </div>
 
     <div class="listings-feed">
-        @foreach (var listing in _listings)
+        @if (_isLoading)
         {
-            <VehicleListingCard Model="listing" OnClick="() => NavigateToDetails(listing.Id)" />
+            <span class="visually-hidden" role="status">@Localizer["Loading"]</span>
+            @for (var i = 0; i < 4; i++)
+            {
+                <SkeletonCard />
+            }
+        }
+        else if (_hasError || _listings.Count == 0)
+        {
+            <BrowsingFeedback HasError="_hasError" OnRetry="LoadAsync" />
+        }
+        else
+        {
+            @foreach (var listing in _listings)
+            {
+                <VehicleListingCard @key="listing.Id" Model="listing" OnClick="() => NavigateToDetails(listing.Id)" />
+            }
         }
     </div>
 </div>
@@ -49,9 +65,38 @@
 @code {
     private IReadOnlyList<VehicleListingCardModel> _listings = Array.Empty<VehicleListingCardModel>();
 
-    protected override void OnInitialized()
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _isLoading = true;
+    private bool _hasError;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
-        _listings = VehicleListingSeedData.GetAll();
+        _isLoading = true;
+        _hasError = false;
+        _listings = Array.Empty<VehicleListingCardModel>();
+        try
+        {
+            _listings = await BrowsingApi.GetListingsAsync(_lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is HttpRequestException or System.Text.Json.JsonException or OperationCanceledException)
+        {
+            _hasError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
     }
 
     private void NavigateToListings()

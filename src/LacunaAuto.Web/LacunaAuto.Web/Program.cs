@@ -1,11 +1,23 @@
 using LacunaAuto.Web.Client.Pages;
 using LacunaAuto.Web.Components;
+using LacunaAuto.Web.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
+
+if (!Uri.TryCreate(builder.Configuration["ListingsApi:BaseUrl"], UriKind.Absolute, out var apiBaseUri) ||
+    (apiBaseUri.Scheme != Uri.UriSchemeHttp && apiBaseUri.Scheme != Uri.UriSchemeHttps))
+{
+    throw new InvalidOperationException("Configure ListingsApi:BaseUrl with the API's absolute HTTP(S) origin.");
+}
+builder.Services.AddHttpClient("ListingsApi", client =>
+{
+    client.BaseAddress = apiBaseUri;
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
 
 var app = builder.Build();
 
@@ -26,6 +38,7 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapListingsProxyEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(LacunaAuto.Web.Client._Imports).Assembly);

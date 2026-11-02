@@ -341,7 +341,8 @@ internal static class Program
             var host = await AppHost.EnsureWebRunningAsync(
                 repositoryRoot,
                 options.WebBaseUrl,
-                options.ReuseRunningApp);
+                options.ReuseRunningApp,
+                options.ApiBaseUrl);
 
             var status = host.ReusedExistingServer
                 ? "Available (reused explicitly authorized running Web server)."

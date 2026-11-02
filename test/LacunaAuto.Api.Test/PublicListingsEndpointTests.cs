@@ -16,6 +16,54 @@ namespace LacunaAuto.Api.Test;
 public sealed class PublicListingsEndpointTests
 {
     [Fact]
+    public async Task GetListing_ShouldMatchThePublishedCardContract()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync([CreateListing(5, true, "Persisted", "Vehicle", isNew: true)], cancellationToken);
+        using var client = factory.CreateClient();
+        using var detailResponse = await client.GetAsync("/api/listings/5", cancellationToken);
+        Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
+
+        using var detail = JsonDocument.Parse(await detailResponse.Content.ReadAsStringAsync(cancellationToken));
+        using var list = JsonDocument.Parse(await client.GetStringAsync("/api/listings", cancellationToken));
+        Assert.Equal(list.RootElement[0].GetRawText(), detail.RootElement.GetRawText());
+        Assert.Equal("Persisted", detail.RootElement.GetProperty("make").GetString());
+        Assert.Equal("Petrol", detail.RootElement.GetProperty("fuelType").GetString());
+        Assert.True(detail.RootElement.GetProperty("isNew").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(99)]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task GetListing_ShouldNotExposeUnpublishedOrMissingListings(int id)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync([CreateListing(2, false, "Hidden", "Vehicle")], cancellationToken);
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync($"/api/listings/{id}", cancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetListing_ShouldPreserveNullOptionalFields()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync([CreateListing(1, true, "Minimal", "Vehicle", trimOrVariant: null,
+            fuelType: null, transmissionType: null, location: null, imageUrl: null)], cancellationToken);
+        using var client = factory.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/api/listings/1", cancellationToken));
+        foreach (var field in new[] { "trimOrVariant", "fuelType", "transmission", "location", "imageUrl" })
+        {
+            Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty(field).ValueKind);
+        }
+    }
+
+    [Fact]
     public async Task GetListings_ShouldExcludeUnpublishedListings()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

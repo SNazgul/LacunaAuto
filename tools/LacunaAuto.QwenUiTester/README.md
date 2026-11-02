@@ -66,6 +66,11 @@ LacunaAuto.Web: http://127.0.0.1:5132/
 LacunaAuto.Api: http://127.0.0.1:5133/
 ```
 
+The runner passes its API origin to the Web host as `ListingsApi__BaseUrl`.
+Browser listing requests use the Web origin and are forwarded to that API.
+Explicit reuse of an existing Web process also requires verifying that this
+upstream configuration matches the requested API origin.
+
 The STRATA endpoint is remote/configurable and is **not committed to the repository**.
 Provide the full Chat Completions URL (including `/v1/chat/completions`) through
 `STRATA_CHAT_COMPLETIONS_URL` or `--strata-url`.
@@ -324,6 +329,10 @@ The workflow:
 Backend-diff classification is still computed, but only to decide whether
 focused `LacunaAuto.Api.Test` execution is included in evidence; it does not
 control API runtime availability.
+
+The review job also runs the focused shared UI/listings-client test project
+before invoking Qwen. A failing client-contract test fails the job; these tests
+use in-process HTTP stubs and do not require browser CORS or a database fixture.
 
 The workflow publishes two GitHub surfaces for each completed review:
 
