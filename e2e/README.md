@@ -29,7 +29,7 @@ The default `http` launch profile serves plain HTTP on
 `http://localhost:5032/`, which is the suite's default base URL.
 
 Web forwards only public listing GET requests to `ListingsApi:BaseUrl`
-(Development default: `http://localhost:5132/`). For custom topology, set
+(Development default: `http://localhost:5133/`). For custom topology, set
 `ListingsApi__BaseUrl` on the Web process to the API origin. Set this explicitly
 in Production as well; Web fails startup if the HTTP(S) API origin is missing.
 The browser always calls the Web origin, so no browser CORS configuration is needed.

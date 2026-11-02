@@ -10,7 +10,7 @@
 
 <PageTitle>@GetPageTitle() - Lacuna Auto</PageTitle>
 
-<div class="details-page" aria-busy="@(_isLoading ? "true" : "false")">
+<div class="details-page" aria-busy="@(_isLoading ? "true" : "false")" data-lacuna-loading="@(_isLoading ? "true" : "false")">
     @if (_isLoading)
     {
         <BrowsingFeedback IsLoading="true" />

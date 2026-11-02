@@ -37,6 +37,7 @@ for (const path of ["/", "/listings"]) {
     try {
       await page.goto(absoluteUrl(path));
       await expect(page.locator(".skeleton-card")).toHaveCount(4);
+      await expect(page.locator('[data-lacuna-loading="true"]')).toHaveCount(1);
       await expect(page.locator(".browsing-feedback")).toHaveCount(0);
       release();
       await expect(page.locator(".browsing-feedback")).toContainText(/no results/i);
@@ -115,6 +116,7 @@ test("details reloads on parameter changes and ignores a cancelled response", as
     await spaNavigate(page, "/listings/202");
     await requested;
     await expect(page.locator(".details-page")).toHaveAttribute("aria-busy", "true");
+    await expect(page.locator(".details-page")).toHaveAttribute("data-lacuna-loading", "true");
     await expect(page.locator(".details-shell")).toHaveCount(0);
     await spaNavigate(page, "/listings/303");
     await expect(page.locator(".model-heading")).toHaveText("Current vehicle");

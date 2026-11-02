@@ -8,7 +8,7 @@
 
 <PageTitle>@Localizer["Search"] - Lacuna Auto</PageTitle>
 
-<div class="listings-page" aria-busy="@(_isLoading ? "true" : "false")">
+<div class="listings-page" aria-busy="@(_isLoading ? "true" : "false")" data-lacuna-loading="@(_isLoading ? "true" : "false")">
     <header class="page-header">
         <button class="back-button" type="button" aria-label="@Localizer["Home"]" @onclick="NavigateBack">
             <svg viewBox="0 0 24 24" aria-hidden="true">

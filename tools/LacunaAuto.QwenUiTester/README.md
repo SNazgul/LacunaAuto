@@ -330,6 +330,10 @@ Backend-diff classification is still computed, but only to decide whether
 focused `LacunaAuto.Api.Test` execution is included in evidence; it does not
 control API runtime availability.
 
+The review job also runs the focused shared UI/listings-client test project
+before invoking Qwen. A failing client-contract test fails the job; these tests
+use in-process HTTP stubs and do not require browser CORS or a database fixture.
+
 The workflow publishes two GitHub surfaces for each completed review:
 
 - a detailed PR comment containing the bounded Markdown report;

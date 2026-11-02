@@ -35,7 +35,7 @@ export async function gotoApp(page: Page, path: string, readySelector: string) {
 export async function waitForAppReady(page: Page, readySelector: string) {
   await page.waitForSelector(readySelector, { timeout: 30_000, state: "attached" });
   // The page shell can render while its API request is still pending.
-  await page.locator(".home-page[aria-busy=true], .listings-page[aria-busy=true], .details-page[aria-busy=true]")
+  await page.locator('[data-lacuna-loading="true"]')
     .waitFor({ state: "hidden", timeout: 30_000 });
 }
 
