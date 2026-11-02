@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using LacunaAuto.Api.Endpoints;
+using LacunaAuto.Data.Extensions;
+using LacunaAuto.Data.Initialization;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
@@ -71,6 +74,10 @@ try
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
+    if (!builder.Environment.IsEnvironment("Testing"))
+    {
+        builder.Services.AddLacunaAutoData(builder.Configuration);
+    }
 
     var app = builder.Build();
 
@@ -96,32 +103,16 @@ try
     {
         app.UseSwagger();
         app.UseSwaggerUI();
+        await DevelopmentDatabaseInitializer.InitializeAsync(app.Services);
     }
 
     app.UseHttpsRedirection();
 
-    var summaries = new[]
-    {
-        "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-    };
-
-    app.MapGet("/weatherforecast", () =>
-    {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-            new WeatherForecast
-            (
-                DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                Random.Shared.Next(-20, 55),
-                summaries[Random.Shared.Next(summaries.Length)]
-            ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast");
+    app.MapPublicListingsEndpoints();
 
     app.Run();
 }
-catch (Exception exception)
+catch (Exception exception) when (exception is not HostAbortedException)
 {
     Log.Fatal(exception, "Application terminated unexpectedly.");
 }
@@ -130,7 +121,6 @@ finally
     Log.CloseAndFlush();
 }
 
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+public partial class Program
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }

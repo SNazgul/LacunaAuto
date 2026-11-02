@@ -6,9 +6,9 @@ Start the listings browsing vertical slice while keeping the accepted browsing U
 
 ## Now
 
-- [ ] Define the minimum listing/domain data required by the accepted Home, Listings, and Listing Details UI.
-- [ ] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
-- [ ] Add the minimal public browsing API needed by the existing UI.
+- [x] Define the minimum listing/domain data required by the accepted Home, Listings, and Listing Details UI.
+- [x] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
+- [x] Add the minimal public browsing API needed by the existing UI.
 - [ ] Connect the existing browsing UI to the real API without redesigning accepted screens.
 
 Keep this as a small end-to-end slice. Do not start authentication, listing management, photo upload/storage implementation, chat, or Hybrid work in this task.
@@ -22,6 +22,21 @@ After the first real listings browsing slice is accepted:
 
 ## Recently Completed
 
+- Milestone 2, Slice 2.1A backend/persistence foundation implemented (backend only, no UI wiring):
+  - Added Core listing domain types independent from `LacunaAuto.UI.Shared`, including minimal card fields plus `IsPublished` and explicit persisted `IsNew` behavior.
+  - Added EF Core + PostgreSQL persistence in `LacunaAuto.Data` with explicit mapping (`vehicle_listings` table), constraints, and index for published browsing reads; first migration created: `InitialListingsBrowsing`.
+  - Added Development-only idempotent seeding aligned with the current 8 `VehicleListingSeedData` records (same IDs/order, image URLs, and `IsNew` values; all published for browsing).
+  - Added public `GET /api/listings` (anonymous, published-only, `AsNoTracking`, deterministic `OrderBy(Id)`, DTO output for current listing cards, OpenAPI metadata); removed `/weatherforecast` sample endpoint.
+  - Added focused API tests for published/unpublished behavior, deterministic order/value checks, and null-optional-field serialization (`LacunaAuto.Api.Test`): **4/4 passed**.
+  - Added focused Development seeder idempotency coverage (run seeder twice without duplicate rows); this test does not claim PostgreSQL identity-sequence verification.
+  - Live PostgreSQL verification completed manually on Windows against the real PostgreSQL 17 Docker container:
+    - `docker compose up -d postgres` succeeded.
+    - PostgreSQL was reachable on `localhost:5432`.
+    - `dotnet ef database update` succeeded for `InitialListingsBrowsing`.
+    - API started in Development and the Development seeder executed successfully.
+    - `GET http://localhost:5132/api/listings` returned HTTP 200 with exactly 8 seeded listings (IDs 1 through 8) in deterministic order.
+    - PostgreSQL query confirmed `MAX(id) = 8`.
+    - `vehicle_listings_id_seq` confirmed `last_value = 8` and `is_called = true`; therefore the next normal identity-generated listing ID is `9`.
 - Qwen review infrastructure now uses explicit dual origins and authoritative runtime topology for the review job:
   - Runner updates (`tools/LacunaAuto.QwenUiTester`) now distinguish Web (`http://127.0.0.1:5132/`) and API (`http://127.0.0.1:5133/`) origins, expose target-aware `http_get(target, route)` constraints, run focused API tests only when backend-relevant, and fail closed to `BLOCKED` when required topology is unavailable.
   - Workflow updates (`.github/workflows/qwen-ui-review.yml`) now start PostgreSQL via the preinstalled Windows service `postgresql-x64-17` (no Docker Compose), keep backend-diff classification for focused backend test scope only, and still enforce exact-SHA/owner/same-repo/secret isolation gates.
@@ -65,6 +80,8 @@ After the first real listings browsing slice is accepted:
 - Production data decision: PostgreSQL on the server; all image files will be stored separately in Backblaze B2.
 
 ## Known Issue
+
+`dotnet restore LacunaAuto.sln`, `dotnet build LacunaAuto.sln`, and `dotnet test LacunaAuto.sln` currently fail in this environment with `NETSDK1147` because required MAUI Android workloads are not installed for `LacunaAuto.Hybrid` / `LacunaAuto.Frontend` target frameworks.
 
 The previously documented `dotnet test LacunaAuto.sln` VSTest blocker did **not** reproduce: on 2026-10-19 with .NET SDK `10.0.401`, `dotnet test LacunaAuto.sln` reported `Test run summary: Passed!` for both `LacunaAuto.Api.Test` and `LacunaAuto.UI.Shared.Tests` (0 failed). No test-infrastructure change was made.
 

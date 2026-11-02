@@ -1,0 +1,203 @@
+using LacunaAuto.Core.Listings;
+using LacunaAuto.Data.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace LacunaAuto.Data.Initialization;
+
+public static class DevelopmentListingsSeeder
+{
+    public static async Task SeedAsync(LacunaAutoDbContext dbContext, CancellationToken cancellationToken = default)
+    {
+        var seedListings = CreateSeedListings();
+        var seedListingIds = seedListings.Select(listing => listing.Id).ToArray();
+
+        var existingSeedListingsById = await dbContext.Listings
+            .Where(listing => seedListingIds.Contains(listing.Id))
+            .ToDictionaryAsync(listing => listing.Id, cancellationToken);
+
+        foreach (var seedListing in seedListings)
+        {
+            if (existingSeedListingsById.TryGetValue(seedListing.Id, out var existingListing))
+            {
+                MapListingValues(existingListing, seedListing);
+                continue;
+            }
+
+            dbContext.Listings.Add(seedListing);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (dbContext.Database.IsNpgsql())
+        {
+            await dbContext.Database.ExecuteSqlRawAsync(
+                """
+                SELECT setval(
+                    pg_get_serial_sequence('vehicle_listings', 'id'),
+                    GREATEST(COALESCE((SELECT MAX(id) FROM vehicle_listings), 0), 1),
+                    true);
+                """,
+                cancellationToken);
+        }
+    }
+
+    private static void MapListingValues(VehicleListing target, VehicleListing source)
+    {
+        target.Make = source.Make;
+        target.Model = source.Model;
+        target.TrimOrVariant = source.TrimOrVariant;
+        target.Year = source.Year;
+        target.Price = source.Price;
+        target.OriginalCurrencyCode = source.OriginalCurrencyCode;
+        target.Mileage = source.Mileage;
+        target.FuelType = source.FuelType;
+        target.Transmission = source.Transmission;
+        target.Location = source.Location;
+        target.ImageUrl = source.ImageUrl;
+        target.IsNew = source.IsNew;
+        target.IsPublished = source.IsPublished;
+    }
+
+    private static List<VehicleListing> CreateSeedListings()
+    {
+        return
+        [
+            new VehicleListing
+            {
+                Id = 1,
+                Make = "Tesla",
+                Model = "Model 3",
+                TrimOrVariant = "Long Range",
+                Year = 2023,
+                Price = 45000m,
+                OriginalCurrencyCode = "USD",
+                Mileage = 12000,
+                FuelType = FuelType.Electric,
+                Transmission = TransmissionType.Automatic,
+                Location = "Kyiv, Ukraine",
+                ImageUrl = "/images/vehicles/tesla-model-3.svg",
+                IsNew = true,
+                IsPublished = true
+            },
+            new VehicleListing
+            {
+                Id = 2,
+                Make = "BMW",
+                Model = "X5",
+                TrimOrVariant = "xDrive40i",
+                Year = 2022,
+                Price = 62000m,
+                OriginalCurrencyCode = "USD",
+                Mileage = 25000,
+                FuelType = FuelType.Petrol,
+                Transmission = TransmissionType.Automatic,
+                Location = "Lviv, Ukraine",
+                ImageUrl = "/images/vehicles/bmw-x5.svg",
+                IsNew = false,
+                IsPublished = true
+            },
+            new VehicleListing
+            {
+                Id = 3,
+                Make = "Toyota",
+                Model = "RAV4",
+                TrimOrVariant = "Hybrid",
+                Year = 2023,
+                Price = 38000m,
+                OriginalCurrencyCode = "USD",
+                Mileage = 8000,
+                FuelType = FuelType.Hybrid,
+                Transmission = TransmissionType.Automatic,
+                Location = "Odesa, Ukraine",
+                ImageUrl = "/images/vehicles/toyota-rav4.svg",
+                IsNew = true,
+                IsPublished = true
+            },
+            new VehicleListing
+            {
+                Id = 4,
+                Make = "Mercedes-Benz",
+                Model = "C-Class",
+                TrimOrVariant = "C 200",
+                Year = 2021,
+                Price = 42000m,
+                OriginalCurrencyCode = "USD",
+                Mileage = 35000,
+                FuelType = FuelType.Petrol,
+                Transmission = TransmissionType.Automatic,
+                Location = "Dnipro, Ukraine",
+                ImageUrl = "/images/vehicles/mercedes-c-class.svg",
+                IsNew = false,
+                IsPublished = true
+            },
+            new VehicleListing
+            {
+                Id = 5,
+                Make = "Volkswagen",
+                Model = "Tiguan",
+                TrimOrVariant = "R-Line",
+                Year = 2022,
+                Price = 35000m,
+                OriginalCurrencyCode = "USD",
+                Mileage = 18000,
+                FuelType = FuelType.Diesel,
+                Transmission = TransmissionType.Automatic,
+                Location = "Kharkiv, Ukraine",
+                ImageUrl = "/images/vehicles/vw-tiguan.svg",
+                IsNew = false,
+                IsPublished = true
+            },
+            new VehicleListing
+            {
+                Id = 6,
+                Make = "Audi",
+                Model = "Q5",
+                TrimOrVariant = "Premium Plus",
+                Year = 2023,
+                Price = 55000m,
+                OriginalCurrencyCode = "USD",
+                Mileage = 5000,
+                FuelType = FuelType.Petrol,
+                Transmission = TransmissionType.Automatic,
+                Location = "Kyiv, Ukraine",
+                ImageUrl = "/images/vehicles/audi-q5.svg",
+                IsNew = true,
+                IsPublished = true
+            },
+            new VehicleListing
+            {
+                Id = 7,
+                Make = "Ford",
+                Model = "Mustang",
+                TrimOrVariant = "GT",
+                Year = 2022,
+                Price = 48000m,
+                OriginalCurrencyCode = "USD",
+                Mileage = 15000,
+                FuelType = FuelType.Petrol,
+                Transmission = TransmissionType.Manual,
+                Location = "Lviv, Ukraine",
+                ImageUrl = "/images/vehicles/ford-mustang.svg",
+                IsNew = false,
+                IsPublished = true
+            },
+            new VehicleListing
+            {
+                Id = 8,
+                Make = "Honda",
+                Model = "CR-V",
+                TrimOrVariant = "EX-L",
+                Year = 2023,
+                Price = 36000m,
+                OriginalCurrencyCode = "USD",
+                Mileage = 6000,
+                FuelType = FuelType.Petrol,
+                Transmission = TransmissionType.Automatic,
+                Location = "Odesa, Ukraine",
+                ImageUrl = "/images/vehicles/honda-crv.svg",
+                IsNew = true,
+                IsPublished = true
+            }
+        ];
+    }
+}
