@@ -134,11 +134,17 @@ jobs:
             const backendPrefixes = [
               'src/LacunaAuto.Api/',
               'src/LacunaAuto.Core/',
-              'src/LacunaAuto.Data/'
+              'src/LacunaAuto.Data/',
+              'test/LacunaAuto.Api.Test/'
+            ];
+
+            const backendExactFiles = [
+              'Directory.Packages.props'
             ];
 
             const backendRelevant = files.some(file =>
-              backendPrefixes.some(prefix => file.filename.startsWith(prefix)));
+              backendPrefixes.some(prefix => file.filename.startsWith(prefix)) ||
+              backendExactFiles.includes(file.filename));
 
             core.setOutput('pr_number', String(prNumber));
             core.setOutput('head_sha', pr.head.sha);
@@ -195,7 +201,7 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          .\.github\scripts\bootstrap-postgres-windows.ps1
+          .\.github\scripts\bootstrap-postgres-windows.ps1 -SuperuserPassword "root"
 
       - name: Run Strata Qwen UI review
         id: qwen
@@ -211,7 +217,7 @@ jobs:
           QWEN_BACKEND_RELEVANT: ${{ needs.prepare.outputs.backend_relevant }}
           QWEN_API_BASE_URL: http://127.0.0.1:5133/
           QWEN_API_REQUIRED: "true"
-          ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=lacunaauto;Username=lacunaauto;Password=lacunaauto_dev_password
+          ConnectionStrings__LacunaAuto: Host=127.0.0.1;Port=5432;Database=lacunaauto;Username=lacunaauto;Password=lacunaauto_dev_password
         run: |
           if ([string]::IsNullOrWhiteSpace($env:STRATA_CHAT_COMPLETIONS_URL)) {
             throw "Repository variable STRATA_CHAT_COMPLETIONS_URL is not configured."

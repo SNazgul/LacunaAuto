@@ -16,7 +16,23 @@ if ($RoleName -notmatch '^[a-zA-Z0-9_]+$') {
   throw "RoleName '$RoleName' contains unsupported characters."
 }
 
-$service = Get-Service -Name $ServiceName -ErrorAction Stop
+try {
+  $service = Get-Service -Name $ServiceName -ErrorAction Stop
+}
+catch {
+  throw "Expected PostgreSQL service '$ServiceName' was not found on this machine."
+}
+
+$serviceDetails = Get-CimInstance -ClassName Win32_Service -Filter "Name = '$ServiceName'" -ErrorAction SilentlyContinue
+if ($null -eq $serviceDetails) {
+  throw "Expected PostgreSQL service '$ServiceName' was not found in Win32_Service metadata."
+}
+
+if ($serviceDetails.StartMode -eq "Disabled") {
+  Write-Host "Service '$ServiceName' startup mode is Disabled; switching to Manual."
+  Set-Service -Name $ServiceName -StartupType Manual
+}
+
 if ($service.Status -ne "Running") {
   Write-Host "Starting PostgreSQL service '$ServiceName'..."
   Start-Service -Name $ServiceName
