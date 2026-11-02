@@ -89,10 +89,14 @@ $escapedPassword = $RolePassword.Replace("'", "''")
 $escapedRoleName = $RoleName.Replace('"', '""')
 $escapedDatabaseName = $DatabaseName.Replace('"', '""')
 
-$roleExists = (& $psqlPath -w -At -d postgres -c "SELECT 1 FROM pg_roles WHERE rolname = '$RoleName';").Trim()
+$roleExists = [string](& $psqlPath -w -At -d postgres -c "SELECT 1 FROM pg_roles WHERE rolname = '$RoleName';")
 if ($LASTEXITCODE -ne 0) {
   throw "Failed to query existing PostgreSQL roles."
 }
+if ($null -eq $roleExists) {
+  $roleExists = ""
+}
+$roleExists = $roleExists.Trim()
 
 if ($roleExists -ne "1") {
   & $psqlPath -w -v ON_ERROR_STOP=1 -d postgres -c "CREATE ROLE ""$escapedRoleName"" LOGIN PASSWORD '$escapedPassword';"
@@ -107,10 +111,14 @@ else {
   }
 }
 
-$databaseExists = (& $psqlPath -w -At -d postgres -c "SELECT 1 FROM pg_database WHERE datname = '$DatabaseName';").Trim()
+$databaseExists = [string](& $psqlPath -w -At -d postgres -c "SELECT 1 FROM pg_database WHERE datname = '$DatabaseName';")
 if ($LASTEXITCODE -ne 0) {
   throw "Failed to query existing PostgreSQL databases."
 }
+if ($null -eq $databaseExists) {
+  $databaseExists = ""
+}
+$databaseExists = $databaseExists.Trim()
 
 if ($databaseExists -ne "1") {
   & $psqlPath -w -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE ""$escapedDatabaseName"" OWNER ""$escapedRoleName"";"
