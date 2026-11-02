@@ -22,6 +22,16 @@ After the first real listings browsing slice is accepted:
 
 ## Recently Completed
 
+- Qwen review infrastructure now uses explicit dual origins and authoritative runtime topology for the review job:
+  - Runner updates (`tools/LacunaAuto.QwenUiTester`) now distinguish Web (`http://127.0.0.1:5132/`) and API (`http://127.0.0.1:5133/`) origins, expose target-aware `http_get(target, route)` constraints, run focused API tests only when backend-relevant, and fail closed to `BLOCKED` when required topology is unavailable.
+  - Workflow updates (`.github/workflows/qwen-ui-review.yml`) now start PostgreSQL via the preinstalled Windows service `postgresql-x64-17` (no Docker Compose), keep backend-diff classification for focused backend test scope only, and still enforce exact-SHA/owner/same-repo/secret isolation gates.
+  - The review job now fails closed before model execution when PostgreSQL bootstrap fails: it emits a structured `BLOCKED` review artifact (`qwen-ui-review.md` + `qwen-ui-review.json` with exact tested/base SHA), sets `exit_code=3` / `model_result=BLOCKED`, and preserves the existing artifact + PR/check-run publish path.
+  - Added `.github/scripts/bootstrap-postgres-windows.ps1` for review-only PostgreSQL service bootstrap + `lacunaauto` role/database provisioning.
+  - Verified locally:
+    - `dotnet build tools/LacunaAuto.QwenUiTester/LacunaAuto.QwenUiTester.csproj` — passed.
+    - `dotnet test test/LacunaAuto.Api.Test/LacunaAuto.Api.Test.csproj` — passed (1/1).
+    - `dotnet run ... --skip-regression --regression-only --api-required` with normal ports — exited `0` with topology ready.
+    - `dotnet run ... --skip-regression --regression-only --api-required --api-base-url http://127.0.0.1:5132/` (forced API/Web port collision) — exited `3` with required-topology-unavailable behavior.
 - E2E config-test URL-override fix, verified green at **37/37** browser tests plus 2 expected-failure fault-injection checks:
   - `specs/runner-config.spec.ts` hardcoded `expect(baseURL).toBe("http://localhost:5032/")`, which failed for a valid `E2E_BASE_URL` override. The expectation now derives from `E2E_BASE_URL` through the shared `APP_BASE_URL` helper constant (same default as the config), so `E2E_BASE_URL=http://localhost:5132/` passes and reports that origin. `actionTimeout = 15000`, `navigationTimeout = 30000` and `locale = en-US` remain hardcoded.
 - E2E follow-up review pass (two findings), verified green at **37/37** browser tests plus 2 expected-failure fault-injection checks:

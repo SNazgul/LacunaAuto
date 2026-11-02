@@ -14,7 +14,7 @@ This is the first local integration stage. It proves the path:
 
 ```text
 exact Git revision
-    -> runner-owned LacunaAuto.Web process
+    -> runner-owned PostgreSQL + LacunaAuto.Api + LacunaAuto.Web topology
     -> normal Playwright regression suite
     -> STRATA /v1/chat/completions
     -> Qwen tool-call loop
@@ -27,6 +27,11 @@ OWNER-authored same-repository PRs on GitHub-hosted Windows, checks out the exac
 PR head SHA, executes this tester, uploads the review artifacts, publishes the
 detailed report back to the PR, and creates a `Qwen UI Review` Check Run on the
 exact tested SHA.
+
+If the workflow cannot bootstrap PostgreSQL on the GitHub runner, it does not
+invoke STRATA for a normal model review. It emits a structured `BLOCKED` review
+artifact for the exact SHA instead, preserving fail-closed check behavior and
+artifact/check-run publishing.
 
 The slash-command path remains available for an explicit rerun or custom
 acceptance criteria.
@@ -53,25 +58,26 @@ npx playwright install chromium
 
 ## Endpoints
 
-The Qwen UI Tester deliberately uses a dedicated local application port so it does
-not silently test an unrelated Visual Studio/dev-server process:
+The Qwen UI Tester uses explicit, separate local origins for Web and API so the
+model cannot silently probe API routes on the Web process:
 
 ```text
-LacunaAuto under test: http://127.0.0.1:5132/
+LacunaAuto.Web: http://127.0.0.1:5132/
+LacunaAuto.Api: http://127.0.0.1:5133/
 ```
 
 The STRATA endpoint is remote/configurable and is **not committed to the repository**.
 Provide the full Chat Completions URL (including `/v1/chat/completions`) through
 `STRATA_CHAT_COMPLETIONS_URL` or `--strata-url`.
 
-If something is already responding on the app port, the runner stops rather
-than trusting it. `--reuse-running-app` exists only for an explicit,
-non-default case where the caller has already verified that the server is
-serving the exact revision under review.
+Authoritative review mode requires API + Web runtime topology. If something is
+already responding on either origin, the runner stops rather than trusting it.
+`--reuse-running-app` and `--reuse-running-api` exist only for explicit,
+non-default cases where the caller has already verified exact revision match.
 
 ## First smoke run
 
-Before starting LacunaAuto.Web or Playwright, validate only the remote STRATA
+Before starting LacunaAuto.Api/LacunaAuto.Web or Playwright, validate only the remote STRATA
 transport, Caddy Bearer authentication, model selection, reasoning setting, and
 the complete tool-call round trip:
 
@@ -92,7 +98,7 @@ Tool result: OK
 Final      : LACUNA_QWEN_SMOKE_OK
 ```
 
-This mode deliberately does not start the Web app or Playwright.
+This mode deliberately does not start the API app, Web app, or Playwright.
 
 ## First full UI review run
 
@@ -111,6 +117,11 @@ The runner verifies that `--head` resolves to the current checkout. By default
 it also refuses a dirty working tree because an uncommitted tree cannot be
 identified reliably by the reported SHA.
 
+Authoritative mode also requires runtime topology availability:
+PostgreSQL + `LacunaAuto.Api` + `LacunaAuto.Web`. The runner starts API/Web,
+but PostgreSQL must already be available (or configured via environment
+override connection string for the API process).
+
 ## Configuration
 
 CLI options:
@@ -122,6 +133,12 @@ CLI options:
 | `--scope` | generic current-UI review |
 | `--acceptance` | evidence-backed regression/review |
 | `--base-url` | `http://127.0.0.1:5132/` |
+| `--web-base-url` | `http://127.0.0.1:5132/` |
+| `--api-base-url` | `http://127.0.0.1:5133/` |
+| `--api-required` | on by default unless `--api-optional` is set |
+| `--api-optional` | off |
+| `--backend-relevant` | off |
+| `--postgres-bootstrap-status` | `unknown` |
 | `--strata-url` | required full Chat Completions endpoint URL |
 | `--model` | `qwen3.8-flash-next-coder-iq1_m` |
 | `--reasoning-effort` | `high` |
@@ -132,11 +149,16 @@ CLI options:
 | `--skip-regression` | off |
 | `--allow-dirty` | off |
 | `--reuse-running-app` | off |
+| `--reuse-running-api` | off |
 
 Environment-variable alternatives:
 
 ```text
 E2E_BASE_URL
+QWEN_API_BASE_URL
+QWEN_API_REQUIRED
+QWEN_BACKEND_RELEVANT
+QWEN_POSTGRES_BOOTSTRAP_STATUS
 STRATA_CHAT_COMPLETIONS_URL
 STRATA_MODEL
 STRATA_API_KEY
@@ -175,7 +197,7 @@ It receives only:
 - `git_diff` — the locked `base...head` review diff;
 - `run_playwright` — existing files under `e2e/specs/*.ts` only; optional `grep` is a test-title regex only, duplicate runs are rejected, and each review has a bounded focused-run budget;
 - `read_e2e_report` — the preserved full regression JSON report;
-- `http_get` — GET routes under the configured application origin.
+- `http_get` — GET routes under an explicit `target` (`web` or `api`) and a relative route only.
 
 The full regression report is copied before any focused rerun so a later
 targeted Playwright execution cannot overwrite the evidence from the initial
@@ -238,6 +260,11 @@ same-repository PR heads. Fork PRs are rejected before the review job, because
 the STRATA secret is exposed only to the Qwen execution step and must never be
 made available to untrusted fork code.
 
+The workflow does **not** use Docker Compose for PostgreSQL on `windows-latest`.
+It starts the preinstalled Windows service `postgresql-x64-17`, then provisions
+the review database/user (or applies an explicit review-only connection-string
+override) before starting the authoritative API+Web review topology.
+
 Checkout uses `persist-credentials: false`, and the review job itself has only
 `contents: read`. The write-capable token used to post the final PR comment is
 kept in a separate GitHub-hosted publish job.
@@ -286,11 +313,17 @@ The workflow:
 2. captures the exact base and head SHAs;
 3. checks out the exact head SHA with full Git history;
 4. installs the locked E2E dependencies and Chromium;
-5. runs the tester with `reasoning-effort=medium`, `max-tokens=12000`, and
+5. starts `postgresql-x64-17` and provisions review DB access for the API;
+6. runs the tester with explicit Web/API origins in authoritative topology mode
+   (`API required`), `reasoning-effort=medium`, `max-tokens=12000`, and
    `max-tool-turns=12`;
-6. preserves `e2e/qwen-reviews/` as a 14-day workflow artifact;
-7. posts the complete or bounded review back to the PR;
-8. fails the review job for FAIL, BLOCKED, or integration failure.
+7. preserves `e2e/qwen-reviews/` as a 14-day workflow artifact;
+8. posts the complete or bounded review back to the PR;
+9. fails the review job for FAIL, BLOCKED, or integration failure.
+
+Backend-diff classification is still computed, but only to decide whether
+focused `LacunaAuto.Api.Test` execution is included in evidence; it does not
+control API runtime availability.
 
 The workflow publishes two GitHub surfaces for each completed review:
 

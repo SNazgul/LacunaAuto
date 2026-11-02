@@ -4,6 +4,12 @@ namespace LacunaAuto.QwenUiTester;
 
 internal sealed class AppHost : IAsyncDisposable
 {
+    private enum ReadinessMode
+    {
+        SuccessStatusCode,
+        AnyHttpResponse,
+    }
+
     private readonly Process? _process;
 
     private AppHost(Process? process, bool reusedExistingServer)
@@ -14,29 +20,69 @@ internal sealed class AppHost : IAsyncDisposable
 
     public bool ReusedExistingServer { get; }
 
-    public static async Task<AppHost> EnsureRunningAsync(
+    public static Task<AppHost> EnsureWebRunningAsync(
         string repositoryRoot,
-        string appBaseUrl,
+        string webBaseUrl,
         bool reuseRunningApp)
     {
-        if (await IsReadyAsync(appBaseUrl))
-        {
-            if (!reuseRunningApp)
-            {
-                throw new InvalidOperationException(
-                    $"An application is already responding at {appBaseUrl}. " +
-                    "Stop it before running Qwen UI Tester, or pass --reuse-running-app only after confirming it serves the exact revision under review.");
-            }
-
-            return new AppHost(process: null, reusedExistingServer: true);
-        }
-
         var projectPath = Path.Combine(
             repositoryRoot,
             "src",
             "LacunaAuto.Web",
             "LacunaAuto.Web",
             "LacunaAuto.Web.csproj");
+
+        return EnsureRunningAsync(
+            repositoryRoot,
+            webBaseUrl,
+            reuseRunningApp,
+            projectPath,
+            "LacunaAuto.Web",
+            "--reuse-running-app",
+            ReadinessMode.SuccessStatusCode);
+    }
+
+    public static Task<AppHost> EnsureApiRunningAsync(
+        string repositoryRoot,
+        string apiBaseUrl,
+        bool reuseRunningApi)
+    {
+        var projectPath = Path.Combine(
+            repositoryRoot,
+            "src",
+            "LacunaAuto.Api",
+            "LacunaAuto.Api.csproj");
+
+        return EnsureRunningAsync(
+            repositoryRoot,
+            apiBaseUrl,
+            reuseRunningApi,
+            projectPath,
+            "LacunaAuto.Api",
+            "--reuse-running-api",
+            ReadinessMode.AnyHttpResponse);
+    }
+
+    private static async Task<AppHost> EnsureRunningAsync(
+        string repositoryRoot,
+        string appBaseUrl,
+        bool reuseRunningApp,
+        string projectPath,
+        string processName,
+        string reuseFlagName,
+        ReadinessMode readinessMode)
+    {
+        if (await IsReadyAsync(appBaseUrl, readinessMode))
+        {
+            if (!reuseRunningApp)
+            {
+                throw new InvalidOperationException(
+                    $"{processName} is already responding at {appBaseUrl}. " +
+                    $"Stop it before running Qwen UI Tester, or pass {reuseFlagName} only after confirming it serves the exact revision under review.");
+            }
+
+            return new AppHost(process: null, reusedExistingServer: true);
+        }
 
         var startInfo = new ProcessStartInfo
         {
@@ -57,7 +103,7 @@ internal sealed class AppHost : IAsyncDisposable
         startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
 
         var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Failed to start LacunaAuto.Web.");
+            ?? throw new InvalidOperationException($"Failed to start {processName}.");
 
         var deadline = DateTimeOffset.UtcNow.AddSeconds(90);
 
@@ -66,10 +112,10 @@ internal sealed class AppHost : IAsyncDisposable
             if (process.HasExited)
             {
                 throw new InvalidOperationException(
-                    $"LacunaAuto.Web exited before becoming ready. Exit code: {process.ExitCode}.");
+                    $"{processName} exited before becoming ready. Exit code: {process.ExitCode}.");
             }
 
-            if (await IsReadyAsync(appBaseUrl))
+            if (await IsReadyAsync(appBaseUrl, readinessMode))
                 return new AppHost(process, reusedExistingServer: false);
 
             await Task.Delay(500);
@@ -84,7 +130,7 @@ internal sealed class AppHost : IAsyncDisposable
             // Process already exited.
         }
 
-        throw new TimeoutException($"LacunaAuto.Web did not become ready at {appBaseUrl} within 90 seconds.");
+        throw new TimeoutException($"{processName} did not become ready at {appBaseUrl} within 90 seconds.");
     }
 
     public ValueTask DisposeAsync()
@@ -106,7 +152,7 @@ internal sealed class AppHost : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    private static async Task<bool> IsReadyAsync(string appBaseUrl)
+    private static async Task<bool> IsReadyAsync(string appBaseUrl, ReadinessMode readinessMode)
     {
         using var client = new HttpClient
         {
@@ -116,7 +162,9 @@ internal sealed class AppHost : IAsyncDisposable
         try
         {
             using var response = await client.GetAsync(appBaseUrl);
-            return response.IsSuccessStatusCode;
+            return readinessMode == ReadinessMode.SuccessStatusCode
+                ? response.IsSuccessStatusCode
+                : true;
         }
         catch (HttpRequestException)
         {

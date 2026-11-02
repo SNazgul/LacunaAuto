@@ -5,7 +5,11 @@ internal sealed record RunnerOptions(
     string HeadRef,
     string Scope,
     string Acceptance,
-    string AppBaseUrl,
+    string WebBaseUrl,
+    string ApiBaseUrl,
+    bool ApiRequired,
+    bool BackendRelevant,
+    string PostgresBootstrapStatus,
     string ChatCompletionsUrl,
     string Model,
     string? ApiKey,
@@ -15,10 +19,12 @@ internal sealed record RunnerOptions(
     bool SkipRegression,
     bool AllowDirty,
     bool ReuseRunningApp,
+    bool ReuseRunningApi,
     bool StrataSmoke,
     bool RegressionOnly)
 {
-    private const string DefaultAppBaseUrl = "http://127.0.0.1:5132/";
+    private const string DefaultWebBaseUrl = "http://127.0.0.1:5132/";
+    private const string DefaultApiBaseUrl = "http://127.0.0.1:5133/";
     private const string DefaultModel = "qwen3.8-flash-next-coder-iq1_m";
     private const string DefaultReasoningEffort = "high";
 
@@ -34,7 +40,9 @@ internal sealed record RunnerOptions(
                 throw new ArgumentException($"Unexpected argument: {argument}");
 
             var name = argument[2..];
-            if (name is "skip-regression" or "allow-dirty" or "reuse-running-app" or "strata-smoke" or "regression-only")
+            if (name is "skip-regression" or "allow-dirty" or "reuse-running-app" or
+                "reuse-running-api" or "strata-smoke" or "regression-only" or
+                "api-required" or "api-optional" or "backend-relevant")
             {
                 flags.Add(name);
                 continue;
@@ -77,12 +85,36 @@ internal sealed record RunnerOptions(
                 "--reasoning-effort must be one of: none, low, medium, high.");
         }
 
+        var apiRequired = flags.Contains("api-required")
+            ? true
+            : flags.Contains("api-optional")
+                ? false
+                : ParseBoolean(
+                    Get(values, "api-required", Environment.GetEnvironmentVariable("QWEN_API_REQUIRED") ?? "true"),
+                    "api-required");
+
+        var backendRelevant = flags.Contains("backend-relevant")
+            ? true
+            : ParseBoolean(
+                Get(values, "backend-relevant", Environment.GetEnvironmentVariable("QWEN_BACKEND_RELEVANT") ?? "false"),
+                "backend-relevant");
+
         return new RunnerOptions(
             BaseRef: Get(values, "base", "main"),
             HeadRef: Get(values, "head", "HEAD"),
             Scope: Get(values, "scope", "Review the current UI implementation changes."),
             Acceptance: Get(values, "acceptance", "Run the relevant regression coverage, inspect the changed UI behavior, and report only evidence-backed conclusions."),
-            AppBaseUrl: EnsureTrailingSlash(Get(values, "base-url", Environment.GetEnvironmentVariable("E2E_BASE_URL") ?? DefaultAppBaseUrl)),
+            WebBaseUrl: EnsureTrailingSlash(Get(
+                values,
+                "web-base-url",
+                Get(values, "base-url", Environment.GetEnvironmentVariable("E2E_BASE_URL") ?? DefaultWebBaseUrl))),
+            ApiBaseUrl: EnsureTrailingSlash(Get(values, "api-base-url", Environment.GetEnvironmentVariable("QWEN_API_BASE_URL") ?? DefaultApiBaseUrl)),
+            ApiRequired: apiRequired,
+            BackendRelevant: backendRelevant,
+            PostgresBootstrapStatus: Get(
+                values,
+                "postgres-bootstrap-status",
+                Environment.GetEnvironmentVariable("QWEN_POSTGRES_BOOTSTRAP_STATUS") ?? "unknown"),
             ChatCompletionsUrl: chatCompletionsUrl,
             Model: Get(values, "model", Environment.GetEnvironmentVariable("STRATA_MODEL") ?? DefaultModel),
             ApiKey: Environment.GetEnvironmentVariable("STRATA_API_KEY"),
@@ -92,6 +124,7 @@ internal sealed record RunnerOptions(
             SkipRegression: flags.Contains("skip-regression"),
             AllowDirty: flags.Contains("allow-dirty"),
             ReuseRunningApp: flags.Contains("reuse-running-app"),
+            ReuseRunningApi: flags.Contains("reuse-running-api"),
             StrataSmoke: flags.Contains("strata-smoke"),
             RegressionOnly: flags.Contains("regression-only"));
     }
@@ -125,6 +158,19 @@ internal sealed record RunnerOptions(
             throw new ArgumentException($"--{name} must be a positive integer.");
 
         return parsed;
+    }
+
+    private static bool ParseBoolean(string value, string name)
+    {
+        if (bool.TryParse(value, out var parsed))
+            return parsed;
+
+        return value switch
+        {
+            "1" => true,
+            "0" => false,
+            _ => throw new ArgumentException($"--{name} must be true/false."),
+        };
     }
 
     private static string EnsureTrailingSlash(string value)
