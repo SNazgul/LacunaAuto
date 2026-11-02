@@ -9,6 +9,7 @@ internal sealed record RunnerOptions(
     string ApiBaseUrl,
     bool ApiRequired,
     bool BackendRelevant,
+    string PostgresBootstrapStatus,
     string ChatCompletionsUrl,
     string Model,
     string? ApiKey,
@@ -110,6 +111,10 @@ internal sealed record RunnerOptions(
             ApiBaseUrl: EnsureTrailingSlash(Get(values, "api-base-url", Environment.GetEnvironmentVariable("QWEN_API_BASE_URL") ?? DefaultApiBaseUrl)),
             ApiRequired: apiRequired,
             BackendRelevant: backendRelevant,
+            PostgresBootstrapStatus: Get(
+                values,
+                "postgres-bootstrap-status",
+                Environment.GetEnvironmentVariable("QWEN_POSTGRES_BOOTSTRAP_STATUS") ?? "unknown"),
             ChatCompletionsUrl: chatCompletionsUrl,
             Model: Get(values, "model", Environment.GetEnvironmentVariable("STRATA_MODEL") ?? DefaultModel),
             ApiKey: Environment.GetEnvironmentVariable("STRATA_API_KEY"),

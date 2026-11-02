@@ -28,6 +28,11 @@ PR head SHA, executes this tester, uploads the review artifacts, publishes the
 detailed report back to the PR, and creates a `Qwen UI Review` Check Run on the
 exact tested SHA.
 
+If the workflow cannot bootstrap PostgreSQL on the GitHub runner, it does not
+invoke STRATA for a normal model review. It emits a structured `BLOCKED` review
+artifact for the exact SHA instead, preserving fail-closed check behavior and
+artifact/check-run publishing.
+
 The slash-command path remains available for an explicit rerun or custom
 acceptance criteria.
 
@@ -133,6 +138,7 @@ CLI options:
 | `--api-required` | on by default unless `--api-optional` is set |
 | `--api-optional` | off |
 | `--backend-relevant` | off |
+| `--postgres-bootstrap-status` | `unknown` |
 | `--strata-url` | required full Chat Completions endpoint URL |
 | `--model` | `qwen3.8-flash-next-coder-iq1_m` |
 | `--reasoning-effort` | `high` |
@@ -152,6 +158,7 @@ E2E_BASE_URL
 QWEN_API_BASE_URL
 QWEN_API_REQUIRED
 QWEN_BACKEND_RELEVANT
+QWEN_POSTGRES_BOOTSTRAP_STATUS
 STRATA_CHAT_COMPLETIONS_URL
 STRATA_MODEL
 STRATA_API_KEY

@@ -25,6 +25,7 @@ After the first real listings browsing slice is accepted:
 - Qwen review infrastructure now uses explicit dual origins and authoritative runtime topology for the review job:
   - Runner updates (`tools/LacunaAuto.QwenUiTester`) now distinguish Web (`http://127.0.0.1:5132/`) and API (`http://127.0.0.1:5133/`) origins, expose target-aware `http_get(target, route)` constraints, run focused API tests only when backend-relevant, and fail closed to `BLOCKED` when required topology is unavailable.
   - Workflow updates (`.github/workflows/qwen-ui-review.yml`) now start PostgreSQL via the preinstalled Windows service `postgresql-x64-17` (no Docker Compose), keep backend-diff classification for focused backend test scope only, and still enforce exact-SHA/owner/same-repo/secret isolation gates.
+  - The review job now fails closed before model execution when PostgreSQL bootstrap fails: it emits a structured `BLOCKED` review artifact (`qwen-ui-review.md` + `qwen-ui-review.json` with exact tested/base SHA), sets `exit_code=3` / `model_result=BLOCKED`, and preserves the existing artifact + PR/check-run publish path.
   - Added `.github/scripts/bootstrap-postgres-windows.ps1` for review-only PostgreSQL service bootstrap + `lacunaauto` role/database provisioning.
   - Verified locally:
     - `dotnet build tools/LacunaAuto.QwenUiTester/LacunaAuto.QwenUiTester.csproj` — passed.

@@ -217,18 +217,78 @@ jobs:
           QWEN_BACKEND_RELEVANT: ${{ needs.prepare.outputs.backend_relevant }}
           QWEN_API_BASE_URL: http://127.0.0.1:5133/
           QWEN_API_REQUIRED: "true"
+          QWEN_POSTGRES_BOOTSTRAP_STATUS: ${{ steps.postgres.outcome }}
           ConnectionStrings__LacunaAuto: Host=127.0.0.1;Port=5432;Database=lacunaauto;Username=lacunaauto;Password=lacunaauto_dev_password
         run: |
+          $reviewDirectory = "e2e\qwen-reviews"
+          New-Item -ItemType Directory -Force -Path $reviewDirectory | Out-Null
+
+          if ($env:QWEN_POSTGRES_BOOTSTRAP_STATUS -ne "success") {
+            $generatedUtc = [DateTimeOffset]::UtcNow.ToString("O")
+            $reviewPath = Join-Path $reviewDirectory "qwen-ui-review.md"
+            $metadataPath = Join-Path $reviewDirectory "qwen-ui-review.json"
+
+            $blockedReview = @(
+              "# Strata Qwen UI Review",
+              "",
+              "- Result: **BLOCKED**",
+              "- Tested SHA: `"$env:QWEN_HEAD_SHA`"",
+              "- Base SHA: `"$env:QWEN_BASE_SHA`"",
+              "- PostgreSQL bootstrap status: `"$env:QWEN_POSTGRES_BOOTSTRAP_STATUS`"",
+              "- Generated UTC: `"$generatedUtc`"",
+              "",
+              "Result: BLOCKED",
+              "",
+              "## Regression",
+              "- Required PostgreSQL runtime/bootstrap was unavailable.",
+              "- Authoritative PostgreSQL + API + Web topology could not be established.",
+              "",
+              "## Verified",
+              "- Workflow bootstrap step `Bootstrap PostgreSQL service (Windows)` outcome: `"$env:QWEN_POSTGRES_BOOTSTRAP_STATUS`".",
+              "",
+              "## Findings",
+              "- Review blocked by infrastructure topology precondition failure before model review execution.",
+              "",
+              "## Not verified",
+              "- Runtime behavior requiring the PostgreSQL + API + Web topology.",
+              "",
+              "## Recommendation",
+              "- Restore PostgreSQL bootstrap/runtime availability and rerun this review on the same tested SHA."
+            ) -join [Environment]::NewLine
+
+            [System.IO.File]::WriteAllText(
+              $reviewPath,
+              $blockedReview,
+              [System.Text.UTF8Encoding]::new($true)
+            )
+
+            $blockedMetadata = @{
+              result = "BLOCKED"
+              testedSha = $env:QWEN_HEAD_SHA
+              baseSha = $env:QWEN_BASE_SHA
+              postgresBootstrapStatus = $env:QWEN_POSTGRES_BOOTSTRAP_STATUS
+              regressionSkipped = $true
+              generatedAtUtc = $generatedUtc
+              reviewPath = $reviewPath
+            }
+
+            [System.IO.File]::WriteAllText(
+              $metadataPath,
+              ($blockedMetadata | ConvertTo-Json -Depth 6),
+              [System.Text.UTF8Encoding]::new($true)
+            )
+
+            "exit_code=3" >> $env:GITHUB_OUTPUT
+            "model_result=BLOCKED" >> $env:GITHUB_OUTPUT
+            exit 3
+          }
+
           if ([string]::IsNullOrWhiteSpace($env:STRATA_CHAT_COMPLETIONS_URL)) {
             throw "Repository variable STRATA_CHAT_COMPLETIONS_URL is not configured."
           }
 
           if ([string]::IsNullOrWhiteSpace($env:STRATA_API_KEY)) {
             throw "Repository secret STRATA_API_KEY is not configured."
-          }
-
-          if ("${{ steps.postgres.outcome }}" -ne "success") {
-            Write-Warning "PostgreSQL bootstrap did not complete successfully. The runner should classify required topology gaps as BLOCKED."
           }
 
           $arguments = @(
@@ -243,6 +303,7 @@ jobs:
             "--base-url", "http://127.0.0.1:5132/",
             "--api-base-url", $env:QWEN_API_BASE_URL,
             "--api-required",
+            "--postgres-bootstrap-status", $env:QWEN_POSTGRES_BOOTSTRAP_STATUS,
             "--scope", $env:QWEN_SCOPE,
             "--acceptance", $env:QWEN_ACCEPTANCE
           )

@@ -77,6 +77,7 @@ internal static class Program
             Console.WriteLine($"API URL    : {options.ApiBaseUrl}");
             Console.WriteLine($"API req    : {options.ApiRequired}");
             Console.WriteLine($"Backend    : {options.BackendRelevant}");
+            Console.WriteLine($"Postgres   : {options.PostgresBootstrapStatus}");
             Console.WriteLine($"STRATA     : {options.ChatCompletionsUrl}");
             Console.WriteLine($"Auth       : {(string.IsNullOrWhiteSpace(options.ApiKey) ? "none" : "Authorization: ******")}");
             Console.WriteLine($"Reasoning  : {options.ReasoningEffort}");
@@ -263,6 +264,7 @@ internal static class Program
                         webRuntimeAvailable = topologyEvidence.WebRuntimeAvailable,
                         webRuntimeStatus = topologyEvidence.WebRuntimeStatus,
                         topologyReady = topologyEvidence.TopologyReady,
+                        postgresBootstrapStatus = options.PostgresBootstrapStatus,
                         regressionExitCode = regression.ExitCode,
                         regressionTimedOut = regression.TimedOut,
                         regressionSkipped = options.SkipRegression,
@@ -524,6 +526,7 @@ API origin: {options.ApiBaseUrl}
 API runtime required: {options.ApiRequired}
 API runtime available: {topologyEvidence.ApiRuntimeAvailable}
 API runtime status: {topologyEvidence.ApiRuntimeStatus}
+PostgreSQL bootstrap status: {options.PostgresBootstrapStatus}
 
 Authoritative topology ready: {topologyEvidence.TopologyReady}
 Backend-relevant diff classification: {options.BackendRelevant}
@@ -645,6 +648,7 @@ Restore the required topology and rerun the review on the same tested SHA.
 - API runtime required: `{options.ApiRequired}`
 - API runtime available: `{topologyEvidence.ApiRuntimeAvailable}`
 - API runtime status: `{topologyEvidence.ApiRuntimeStatus}`
+- PostgreSQL bootstrap status: `{options.PostgresBootstrapStatus}`
 - Web runtime available: `{topologyEvidence.WebRuntimeAvailable}`
 - Web runtime status: `{topologyEvidence.WebRuntimeStatus}`
 - Topology ready: `{topologyEvidence.TopologyReady}`
