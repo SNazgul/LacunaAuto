@@ -2,7 +2,7 @@
 
 ## Current Goal
 
-Finish and merge the API-backed listings browsing slice, then plan the separately requested Qwen Vision review infrastructure.
+Validate the responsive Qwen review infrastructure against the configured STRATA Vision model and GitHub check publishing.
 
 ## Now
 
@@ -10,21 +10,24 @@ Finish and merge the API-backed listings browsing slice, then plan the separatel
 - [x] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
 - [x] Add the minimal public browsing API needed by the existing UI.
 - [x] Connect the existing browsing UI to the real API without redesigning accepted screens.
-- [ ] Finish PR #19 reconciliation/checks and merge Slice 2.1B.
+- [x] Merge Slice 2.1B (PR #19, squash commit `0865ea5`).
+- [x] Add bounded layout and screenshot tools for 390×844, 768×1024, and 1440×900.
+- [x] Add the two-image Vision smoke, PNG transport after tool responses, and the responsive evidence requirement for UI `PASS`.
+- [ ] Verify pixel interpretation on the configured STRATA endpoint and the exact-SHA GitHub artifact/check path.
 
 Keep this as a small end-to-end slice. Do not start authentication, listing management, photo upload/storage implementation, chat, or Hybrid work in this task.
 
 ## Next
 
-After Slice 2.1B is merged, return to the agreed Qwen visual responsive review infrastructure task in a separate branch (`feature/qwen-visual-responsive-review`). Start with a concrete implementation plan, not implementation:
-
-- constrained `inspect_layout` and screenshot capture for mobile 390x844, tablet 768x1024, and desktop 1440x900;
-- send actual screenshot pixels to Qwen through STRATA Vision;
-- verify Vision capability and require complete responsive evidence for UI-relevant PASS; unavailable Vision/missing evidence must produce structured BLOCKED;
-- preserve exact-SHA locking, read-only review tools, fixed origin/budgets, and PostgreSQL + API + Web topology;
-- do not redesign product screens or change product scope in that infrastructure task.
-
-This separate Qwen capability is what the earlier conversation called the larger visual review task. It is not a prerequisite to merging the already spot-checked browsing integration. See [the Slice 2.1B reconciliation](LISTINGS_2_1B_RECONCILIATION.md) for the recovered context and implementation comparison.
+Run `--strata-vision-smoke` with the configured endpoint and model, then run a
+UI-relevant review and verify the model's interpretation of the PNGs, the
+workflow artifact, and the required check on the tested SHA. Local verification
+confirmed the PNG bytes sent for `/listings` matched the screenshot files at
+all three presets. A local STRATA substitute confirmed `BLOCKED` for disabled
+Vision and a model `PASS` with missing evidence, preserved a model `FAIL`,
+and skipped Vision for non-UI review. A clean-checkout run with the substitute
+passed after collecting all six viewport results and passing the full
+Playwright suite (49/49) on PostgreSQL, API, and Web.
 
 After that work, continue the product roadmap with the first agreed browsing behavior:
 
@@ -33,7 +36,7 @@ After that work, continue the product roadmap with the first agreed browsing beh
 
 ## Recently Completed
 
-- Milestone 2, Slice 2.1B implemented; PR acceptance/merge pending:
+- Milestone 2, Slice 2.1B implemented and merged in PR #19:
   - Home, Listings, and Listing Details now read the public API through a shared browser client; removed the client-only `VehicleListingSeedData` and seed fallback.
   - Added anonymous, published-only `GET /api/listings/{id}` using the current card fields. Missing, unpublished, and non-positive IDs return 404. Descriptions and seller actions retain their existing Development placeholders; no new seller/domain fields were introduced.
   - Web forwards only the two public listing GET routes to configured `ListingsApi:BaseUrl`. Browser requests stay on the Web origin. Production requires an explicit HTTP(S) API origin; Development and the API launch profile use `http://localhost:5133/`.

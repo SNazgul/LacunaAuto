@@ -1,26 +1,41 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace LacunaAuto.QwenUiTester;
+
+internal sealed record VisionCheck(string Status, string Detail)
+{
+    public bool Available => Status == "available";
+}
+
+internal sealed class StrataRequestException(string status, string message) : Exception(message)
+{
+    public string Status { get; } = status;
+}
 
 internal sealed class StrataAgent : IDisposable
 {
     private const string SmokeToken = "LACUNA_QWEN_SMOKE";
+    private static readonly Regex _imageDataUrl = new(
+        @"(?i:data:image/[^;,\s]+;base64,)[A-Za-z0-9+/_=-]+|iVBORw0KGgo[A-Za-z0-9+/=]+");
 
     private readonly RunnerOptions _options;
     private readonly ToolRegistry? _tools;
     private readonly HttpClient _httpClient;
 
-    public StrataAgent(RunnerOptions options, ToolRegistry? tools = null)
+    public StrataAgent(RunnerOptions options, ToolRegistry? tools = null, HttpMessageHandler? handler = null)
     {
         _options = options;
         _tools = tools;
-        _httpClient = new HttpClient
+        _httpClient = new HttpClient(handler ?? new HttpClientHandler
         {
-            Timeout = TimeSpan.FromMinutes(30),
-        };
+            AllowAutoRedirect = !(options.UiRelevant || options.StrataVisionSmoke),
+        });
+        _httpClient.Timeout = TimeSpan.FromMinutes(30);
 
         if (!string.IsNullOrWhiteSpace(options.ApiKey))
         {
@@ -39,6 +54,8 @@ internal sealed class StrataAgent : IDisposable
             Message("system", systemPrompt),
             Message("user", userPrompt),
         };
+        var pendingCaptures = new List<VisualCapture>();
+        var toolDefinitions = _tools.GetDefinitions();
 
         for (var turn = 1; turn <= _options.MaxToolTurns; turn++)
         {
@@ -46,8 +63,9 @@ internal sealed class StrataAgent : IDisposable
 
             var response = await SendAsync(
                 messages,
-                _tools.GetDefinitions(),
+                toolDefinitions,
                 JsonValue.Create("auto"));
+            MarkDelivered(pendingCaptures);
 
             Console.WriteLine($"Qwen turn   : {turn}/{_options.MaxToolTurns} - response received.");
 
@@ -117,13 +135,17 @@ internal sealed class StrataAgent : IDisposable
                     ?? throw new InvalidOperationException("STRATA tool call is missing function name.");
 
                 var functionArguments = GetArguments(function["arguments"]);
-                Console.WriteLine($"Qwen tool   : {functionName} started.");
+                Console.WriteLine($"Qwen tool   : {(functionName.Length <= 40 ? functionName : "<invalid>")} started.");
 
                 var toolResult = await _tools.ExecuteAsync(functionName, functionArguments);
 
-                Console.WriteLine($"Qwen tool   : {functionName} completed.");
-                messages.Add(ToolMessage(toolCallId, functionName, toolResult));
+                messages.Add(ToolMessage(toolCallId, functionName, _imageDataUrl.Replace(toolResult.Text, "[image data removed]")));
+                if (toolResult.Capture is not null)
+                    pendingCaptures.Add(toolResult.Capture);
             }
+
+            if (pendingCaptures.Count > 0)
+                messages.Add(ImageMessage(pendingCaptures));
         }
 
         Console.WriteLine(
@@ -141,10 +163,11 @@ internal sealed class StrataAgent : IDisposable
 
         var finalResponse = await SendAsync(
             finalMessages,
-            _tools.GetDefinitions(),
+            toolDefinitions,
             JsonValue.Create("none"),
             reasoningEffort: "low",
             maxTokens: Math.Min(_options.MaxTokens, 8000));
+        MarkDelivered(pendingCaptures);
 
         var finalContent = GetStringOrNull(finalResponse.Message["content"]);
         if (string.IsNullOrWhiteSpace(finalContent))
@@ -159,6 +182,14 @@ internal sealed class StrataAgent : IDisposable
             finalMessages,
             finalContent,
             "tool-budget recovery");
+    }
+
+    private void MarkDelivered(List<VisualCapture> captures)
+    {
+        foreach (var capture in captures)
+            _tools!.MarkDelivered(capture);
+
+        captures.Clear();
     }
 
     private async Task<string> EnsureStructuredFinalAsync(
@@ -327,6 +358,93 @@ internal sealed class StrataAgent : IDisposable
         return finalContent.Trim();
     }
 
+    public async Task<VisionCheck> CheckVisionAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_options.ChatCompletionsUrl))
+            return new VisionCheck("endpoint_unavailable", "STRATA_CHAT_COMPLETIONS_URL is missing.");
+
+        const string functionName = "capture_screenshot";
+        var fixtures = new[]
+        {
+            new VisualCapture("/", "mobile", "", ReadVisionFixture("a.png")),
+            new VisualCapture("/", "tablet", "", ReadVisionFixture("b.png")),
+        };
+        var calls = new JsonArray();
+        var toolMessages = new List<JsonObject>();
+        foreach (var fixture in fixtures)
+        {
+            var id = $"call_{fixture.Viewport}";
+            calls.Add(new JsonObject
+            {
+                ["id"] = id,
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = functionName,
+                    ["arguments"] = JsonSerializer.Serialize(new { route = fixture.Route, viewport = fixture.Viewport }),
+                },
+            });
+            toolMessages.Add(ToolMessage(id, functionName, fixture.Label));
+        }
+
+        var messages = new List<JsonObject>
+        {
+            Message("system", "This is a vision transport test. Follow the requested response format exactly."),
+            Message("user", "Read the three digits drawn on each screenshot. Return only the digits from mobile, " +
+                "one space, then the digits from tablet. If you cannot see either image, return NO_IMAGE."),
+            new() { ["role"] = "assistant", ["content"] = null, ["tool_calls"] = calls },
+        };
+        messages.AddRange(toolMessages);
+        messages.Add(ImageMessage(fixtures));
+        JsonArray tools =
+        [
+            new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = functionName,
+                    ["description"] = "Capture a viewport screenshot.",
+                    ["parameters"] = VisualReview.ToolParameters(screenshot: true),
+                },
+            },
+        ];
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        try
+        {
+            var response = await SendAsync(messages, tools, JsonValue.Create("none"),
+                reasoningEffort: "none", maxTokens: 128, cancellationToken: timeout.Token);
+            var answer = GetStringOrNull(response.Message["content"])?.Trim();
+            if (string.IsNullOrEmpty(answer) || response.Message["tool_calls"] is JsonArray { Count: > 0 })
+                return new VisionCheck("model_error", "STRATA did not return a final answer for the Vision smoke.");
+
+            return answer switch
+            {
+                "274 839" => new VisionCheck("available", "Model read both PNG fixtures in tool-call history."),
+                "NO_IMAGE" => new VisionCheck("vision_unverified", "Model reported that it could not see the fixtures."),
+                _ => new VisionCheck("vision_unverified", "Model did not identify both image-only codes."),
+            };
+        }
+        catch (StrataRequestException exception)
+        {
+            return new VisionCheck(exception.Status, exception.Message);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or ArgumentOutOfRangeException)
+        {
+            return new VisionCheck("model_error", "STRATA returned an invalid chat completion.");
+        }
+    }
+
+    private static byte[] ReadVisionFixture(string name)
+    {
+        using var stream = typeof(StrataAgent).Assembly.GetManifestResourceStream($"LacunaAuto.QwenUiTester.VisionFixtures.{name}")
+            ?? throw new InvalidOperationException("The Vision smoke fixture is missing.");
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
+    }
+
     public void Dispose()
     {
         _httpClient.Dispose();
@@ -337,7 +455,8 @@ internal sealed class StrataAgent : IDisposable
         JsonArray tools,
         JsonNode toolChoice,
         string? reasoningEffort = null,
-        int? maxTokens = null)
+        int? maxTokens = null,
+        CancellationToken cancellationToken = default)
     {
         var payload = new JsonObject
         {
@@ -358,19 +477,41 @@ internal sealed class StrataAgent : IDisposable
 
         var startedAt = DateTimeOffset.UtcNow;
 
-        using var response = await _httpClient.PostAsync(
-            _options.ChatCompletionsUrl,
-            content);
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.PostAsync(_options.ChatCompletionsUrl, content, cancellationToken);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException)
+        {
+            throw new StrataRequestException("endpoint_unavailable", "STRATA chat completion was unreachable or timed out.");
+        }
+
+        using var responseLifetime = response;
 
         var elapsed = DateTimeOffset.UtcNow - startedAt;
         Console.WriteLine($"STRATA HTTP : {(int)response.StatusCode} in {elapsed.TotalSeconds:F1}s.");
 
-        var responseText = await response.Content.ReadAsStringAsync();
+        var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException(
-                $"STRATA returned HTTP {(int)response.StatusCode}: {responseText}");
+            var status = response.StatusCode;
+            var error = responseText.ToLowerInvariant();
+            var explicitVisionError = error.Contains("without the vision encoder") ||
+                (status is (HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity or HttpStatusCode.NotImplemented) &&
+                 (error.Contains("vision") || error.Contains("image") || error.Contains("multimodal")) &&
+                 (error.Contains("disabled") || error.Contains("not support") || error.Contains("unsupported") ||
+                  error.Contains("unavailable") || error.Contains("no vision") || error.Contains("not enabled")));
+            var classification = "model_error";
+            if (explicitVisionError)
+                classification = "vision_unavailable";
+            else if (status is HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout ||
+                (status == HttpStatusCode.NotFound && !error.Contains("model")))
+                classification = "endpoint_unavailable";
+
+            // The server may echo image payloads or other sensitive request data in error responses.
+            throw new StrataRequestException(classification, $"STRATA returned HTTP {(int)status} ({classification}).");
         }
 
         var root = JsonNode.Parse(responseText)?.AsObject()
@@ -383,6 +524,11 @@ internal sealed class StrataAgent : IDisposable
             ?? throw new InvalidOperationException("STRATA response contains no assistant message.");
 
         var finishReason = GetStringOrNull(choice["finish_reason"]);
+        if (finishReason is not (null or "stop" or "length" or "tool_calls" or "content_filter" or "function_call"))
+            finishReason = "unknown";
+        var assistantText = GetStringOrNull(message["content"]);
+        if (assistantText is not null)
+            message["content"] = _imageDataUrl.Replace(assistantText, "[image data removed]");
         var contentLength = GetStringOrNull(message["content"])?.Length ?? 0;
         var reasoningLength = GetStringOrNull(message["reasoning_content"])?.Length ?? 0;
         var toolCallCount = message["tool_calls"]?.AsArray().Count ?? 0;
@@ -435,6 +581,21 @@ internal sealed class StrataAgent : IDisposable
             ["role"] = role,
             ["content"] = content,
         };
+    }
+
+    private static JsonObject ImageMessage(IEnumerable<VisualCapture> captures)
+    {
+        var content = new JsonArray();
+        foreach (var capture in captures)
+        {
+            content.Add(new JsonObject { ["type"] = "text", ["text"] = capture.Label });
+            content.Add(new JsonObject
+            {
+                ["type"] = "image_url",
+                ["image_url"] = new JsonObject { ["url"] = $"data:image/png;base64,{Convert.ToBase64String(capture.Png)}" },
+            });
+        }
+        return new JsonObject { ["role"] = "user", ["content"] = content };
     }
 
     private static string? GetStringOrNull(JsonNode? node)

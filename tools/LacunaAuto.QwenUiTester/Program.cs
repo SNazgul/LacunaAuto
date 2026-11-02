@@ -30,6 +30,14 @@ internal static class Program
         {
             var options = RunnerOptions.Parse(args);
 
+            if (options.StrataVisionSmoke)
+            {
+                using var smokeAgent = new StrataAgent(options);
+                var smoke = await smokeAgent.CheckVisionAsync();
+                Console.WriteLine($"STRATA Vision: {smoke.Status} — {smoke.Detail}");
+                return smoke.Available ? 0 : 3;
+            }
+
             if (options.StrataSmoke)
                 return await RunStrataSmokeAsync(options);
 
@@ -60,7 +68,7 @@ internal static class Program
                 repositoryRoot,
                 "diff",
                 "--stat",
-                $"{options.BaseRef}...{options.HeadRef}");
+                $"{baseSha}...{currentHead}");
 
             var e2eDirectory = Path.Combine(repositoryRoot, "e2e");
             var artifactDirectory = Path.Combine(e2eDirectory, "qwen-reviews");
@@ -77,6 +85,7 @@ internal static class Program
             Console.WriteLine($"API URL    : {options.ApiBaseUrl}");
             Console.WriteLine($"API req    : {options.ApiRequired}");
             Console.WriteLine($"Backend    : {options.BackendRelevant}");
+            Console.WriteLine($"UI relevant: {options.UiRelevant}");
             Console.WriteLine($"Postgres   : {options.PostgresBootstrapStatus}");
             Console.WriteLine($"STRATA     : {options.ChatCompletionsUrl}");
             Console.WriteLine($"Auth       : {(string.IsNullOrWhiteSpace(options.ApiKey) ? "none" : "Authorization: ******")}");
@@ -181,14 +190,22 @@ internal static class Program
                 Console.WriteLine();
             }
 
+            VisualReview? visualReview = null;
+            if (options.UiRelevant)
+            {
+                var changedPaths = await GitAsync(repositoryRoot, "diff", "--name-only", "--no-renames", "-z", $"{baseSha}...{currentHead}");
+                visualReview = new VisualReview(e2eDirectory, options.WebBaseUrl, changedPaths.Split('\0'));
+            }
+
             var tools = new ToolRegistry(
                 repositoryRoot,
-                options.BaseRef,
-                options.HeadRef,
+                baseSha,
+                currentHead,
                 options.WebBaseUrl,
                 options.ApiBaseUrl,
                 topologyEvidence.ApiRuntimeAvailable,
-                fullRegressionReportPath);
+                fullRegressionReportPath,
+                visualReview);
 
             var systemPrompt = BuildSystemPrompt(repositoryRoot);
             var userPrompt = BuildUserPrompt(
@@ -199,9 +216,14 @@ internal static class Program
                 diffStat,
                 topologyEvidence,
                 backendTestEvidence,
-                regression);
+                regression,
+                visualReview);
 
             string modelReview;
+            string? visualBlocker = null;
+            var vision = options.UiRelevant
+                ? new VisionCheck("not_run", "Required review topology was unavailable.")
+                : new VisionCheck("not_required", "This PR was classified as non-UI.");
             if (options.ApiRequired && !topologyEvidence.TopologyReady)
             {
                 modelReview = BuildTopologyBlockedReview(
@@ -213,10 +235,49 @@ internal static class Program
             else
             {
                 using var agent = new StrataAgent(options, tools);
-                modelReview = await agent.RunAsync(systemPrompt, userPrompt);
+                if (options.UiRelevant)
+                {
+                    vision = await agent.CheckVisionAsync();
+                    Console.WriteLine($"STRATA Vision: {vision.Status} — {vision.Detail}");
+                }
+
+                if (options.UiRelevant && !vision.Available)
+                {
+                    visualBlocker = vision.Detail;
+                    modelReview = BuildVisualBlockedReview(visualBlocker);
+                }
+                else
+                {
+                    try
+                    {
+                        modelReview = await agent.RunAsync(systemPrompt, userPrompt);
+                    }
+                    catch (StrataRequestException exception) when (options.UiRelevant)
+                    {
+                        visualBlocker = exception.Message;
+                        modelReview = BuildVisualBlockedReview(visualBlocker);
+                    }
+                    catch (Exception exception) when (options.UiRelevant &&
+                        exception is (JsonException or InvalidOperationException or ArgumentOutOfRangeException))
+                    {
+                        visualBlocker = "STRATA could not complete the visual review protocol.";
+                        modelReview = BuildVisualBlockedReview(visualBlocker);
+                    }
+                }
             }
 
             var modelStatus = ParseModelStatus(modelReview);
+            var visualEvidenceSatisfied = visualReview is not null && vision.Available && visualReview.CoveredRoute is not null;
+            if (visualReview is not null && modelStatus == "PASS")
+            {
+                visualBlocker = visualReview.MissingEvidenceReason();
+                if (visualBlocker is null &&
+                    (workingTreeDirty || options.SkipRegression || !options.ApiRequired || !topologyEvidence.TopologyReady ||
+                     options.ReuseRunningApp || options.ReuseRunningApi))
+                {
+                    visualBlocker = "A UI PASS requires a clean checkout, runner-started API and Web, and a full regression run.";
+                }
+            }
             var finalStatus = ResolveFinalStatus(
                 modelStatus,
                 regression,
@@ -224,6 +285,8 @@ internal static class Program
                 topologyEvidence,
                 backendTestEvidence,
                 options.ApiRequired);
+            if (visualBlocker is not null)
+                finalStatus = "BLOCKED";
 
             var reviewPath = Path.Combine(artifactDirectory, "qwen-ui-review.md");
             var metadataPath = Path.Combine(artifactDirectory, "qwen-ui-review.json");
@@ -237,7 +300,11 @@ internal static class Program
                 backendTestEvidence,
                 regression,
                 finalStatus,
-                modelReview);
+                modelReview,
+                vision,
+                visualReview,
+                visualEvidenceSatisfied,
+                visualBlocker);
 
             await File.WriteAllTextAsync(
                 reviewPath,
@@ -269,6 +336,17 @@ internal static class Program
                         regressionTimedOut = regression.TimedOut,
                         regressionSkipped = options.SkipRegression,
                         backendRelevant = options.BackendRelevant,
+                        uiRelevant = options.UiRelevant,
+                        visionStatus = vision.Status,
+                        visionAvailable = vision.Available,
+                        visionDetail = vision.Detail,
+                        screenshotCount = visualReview?.ScreenshotCount ?? 0,
+                        screenshots = visualReview?.ScreenshotEvidence ?? Array.Empty<object>(),
+                        layoutInspections = visualReview?.LayoutEvidence ?? Array.Empty<object>(),
+                        relevantVisualRoutes = visualReview?.RelevantRoutes ?? [],
+                        coveredVisualRoute = visualReview?.CoveredRoute,
+                        visualEvidenceSatisfied,
+                        visualBlocker,
                         focusedBackendTestsExecuted = backendTestEvidence.Executed,
                         focusedBackendTestsExitCode = backendTestEvidence.Executed ? backendTestEvidence.Result.ExitCode : (int?)null,
                         focusedBackendTestsTimedOut = backendTestEvidence.Executed ? backendTestEvidence.Result.TimedOut : (bool?)null,
@@ -503,12 +581,22 @@ Active verification skill:
         string diffStat,
         RuntimeTopologyEvidence topologyEvidence,
         BackendTestEvidence backendTestEvidence,
-        ProcessResult regression)
+        ProcessResult regression,
+        VisualReview? visualReview)
     {
         var regressionOutput = Limit(regression.CombinedOutput, 20_000);
         var backendOutput = backendTestEvidence.Executed
             ? Limit(backendTestEvidence.Result.CombinedOutput, 12_000)
             : backendTestEvidence.Note;
+        var visualInstructions = visualReview is null ? string.Empty : $"""
+This PR requires responsive visual review. Routes eligible for visual coverage: {string.Join(", ", visualReview.RelevantRoutes)}.
+Call inspect_layout and capture_screenshot on an affected route at mobile (390×844), tablet (768×1024), and desktop (1440×900).
+Use the delivered PNGs and measured geometry together. Check horizontal and vertical clipping, unintended overflow,
+offscreen controls, overlaps, alignment, spacing, card and panel width, awkward whitespace, responsive composition,
+visual hierarchy, text wrapping or truncation, image proportions, and control placement across presets.
+Normal vertical scrolling is expected on long pages. Treat clear usability or layout defects as findings with route and viewport evidence.
+Record subjective design preferences as observations. If no eligible route or required evidence is available, explain the gap and return BLOCKED unless there is a verified material defect.
+""";
 
         return $"""
 Perform an independent UI automation review of the exact revision below.
@@ -531,6 +619,7 @@ PostgreSQL bootstrap status: {options.PostgresBootstrapStatus}
 
 Authoritative topology ready: {topologyEvidence.TopologyReady}
 Backend-relevant diff classification: {options.BackendRelevant}
+UI-relevant diff classification: {options.UiRelevant}
 
 Requested scope:
 {options.Scope}
@@ -563,6 +652,7 @@ Focused backend test output:
 </FOCUSED_BACKEND_TEST_OUTPUT>
 
 Use the available tools to inspect the locked diff, relevant source/specs, preserved regression report, explicit web/api HTTP behavior, and focused existing Playwright specs when useful.
+{visualInstructions}
 
 Do not broaden the task into unrelated implementation work.
 Do not treat the existing regression suite as sufficient proof for new behavior if the diff introduces behavior the suite does not cover.
@@ -633,8 +723,13 @@ Restore the required topology and rerun the review on the same tested SHA.
         BackendTestEvidence backendTestEvidence,
         ProcessResult regression,
         string finalStatus,
-        string modelReview)
+        string modelReview,
+        VisionCheck vision,
+        VisualReview? visualReview,
+        bool visualEvidenceSatisfied,
+        string? visualBlocker)
     {
+        var visualLines = visualReview is null ? string.Empty : string.Join("\n", visualReview.EvidenceLines());
         return $"""
 # Strata Qwen UI Review
 
@@ -657,6 +752,13 @@ Restore the required topology and rerun the review on the same tested SHA.
 - Regression timed out: `{regression.TimedOut}`
 - Regression skipped: `{options.SkipRegression}`
 - Backend-relevant diff classification: `{options.BackendRelevant}`
+- UI-relevant diff classification: `{options.UiRelevant}`
+- Vision status: `{vision.Status}` — {vision.Detail}
+- Screenshots captured: {visualReview?.ScreenshotCount ?? 0}
+- Responsive evidence complete: `{visualEvidenceSatisfied}`
+- Covered visual route: {visualReview?.CoveredRoute ?? "none"}
+{(visualBlocker is null ? string.Empty : $"- Visual blocker: {visualBlocker}")}
+{visualLines}
 - Focused backend tests executed: `{backendTestEvidence.Executed}`
 - Focused backend tests exit code: `{(backendTestEvidence.Executed ? backendTestEvidence.Result.ExitCode : null)}`
 - Focused backend tests timed out: `{(backendTestEvidence.Executed ? backendTestEvidence.Result.TimedOut : null)}`
@@ -668,6 +770,25 @@ Restore the required topology and rerun the review on the same tested SHA.
 {modelReview.Trim()}
 """;
     }
+
+    private static string BuildVisualBlockedReview(string detail) => $"""
+Result: BLOCKED
+
+## Regression
+See the regression exit code in this report.
+
+## Verified
+See the collected runtime and responsive evidence above.
+
+## Findings
+Visual review infrastructure was blocked. {detail}
+
+## Not verified
+Qwen visual review across the required viewports.
+
+## Recommendation
+Resolve the review infrastructure blocker and rerun the same SHA.
+""";
 
     private static string ParseModelStatus(string modelReview)
     {

@@ -7,4 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="VisionFixtures/*.png" />
+    <InternalsVisibleTo Include="LacunaAuto.QwenUiTester.Tests" />
+  </ItemGroup>
+
 </Project>
