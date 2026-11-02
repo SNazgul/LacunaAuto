@@ -12,7 +12,9 @@ internal sealed class ToolRegistry
     private readonly string _repositoryRoot;
     private readonly string _baseRef;
     private readonly string _headRef;
-    private readonly string _appBaseUrl;
+    private readonly string _webBaseUrl;
+    private readonly string _apiBaseUrl;
+    private readonly bool _apiRuntimeAvailable;
     private readonly string _e2eDirectory;
     private readonly string _fullRegressionReportPath;
     private readonly HashSet<string> _focusedPlaywrightRuns = new(StringComparer.Ordinal);
@@ -22,13 +24,17 @@ internal sealed class ToolRegistry
         string repositoryRoot,
         string baseRef,
         string headRef,
-        string appBaseUrl,
+        string webBaseUrl,
+        string apiBaseUrl,
+        bool apiRuntimeAvailable,
         string fullRegressionReportPath)
     {
         _repositoryRoot = repositoryRoot;
         _baseRef = baseRef;
         _headRef = headRef;
-        _appBaseUrl = appBaseUrl;
+        _webBaseUrl = webBaseUrl;
+        _apiBaseUrl = apiBaseUrl;
+        _apiRuntimeAvailable = apiRuntimeAvailable;
         _e2eDirectory = Path.Combine(repositoryRoot, "e2e");
         _fullRegressionReportPath = fullRegressionReportPath;
     }
@@ -125,19 +131,25 @@ internal sealed class ToolRegistry
                 }),
             Function(
                 "http_get",
-                "GET one route from the LacunaAuto app under review and return status plus a bounded response body.",
+                "GET one route from an explicit review target (web or api) and return status plus a bounded response body.",
                 new JsonObject
                 {
                     ["type"] = "object",
                     ["properties"] = new JsonObject
                     {
+                        ["target"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Required origin target: web or api.",
+                            ["enum"] = new JsonArray("web", "api"),
+                        },
                         ["route"] = new JsonObject
                         {
                             ["type"] = "string",
-                            ["description"] = "Relative application route, for example /listings or /manifest.webmanifest.",
+                            ["description"] = "Relative route for the selected target, for example /listings (web) or /api/listings (api).",
                         },
                     },
-                    ["required"] = new JsonArray("route"),
+                    ["required"] = new JsonArray("target", "route"),
                     ["additionalProperties"] = false,
                 }),
         ];
@@ -161,7 +173,9 @@ internal sealed class ToolRegistry
                     GetRequiredString(root, "spec"),
                     GetOptionalString(root, "grep")),
                 "read_e2e_report" => await ReadE2eReportAsync(),
-                "http_get" => await HttpGetAsync(GetRequiredString(root, "route")),
+                "http_get" => await HttpGetAsync(
+                    GetRequiredString(root, "target"),
+                    GetRequiredString(root, "route")),
                 _ => $"TOOL_ERROR: Unknown tool '{name}'.",
             };
         }
@@ -309,7 +323,7 @@ internal sealed class ToolRegistry
             TimeSpan.FromMinutes(3),
             new Dictionary<string, string?>
             {
-                ["E2E_BASE_URL"] = _appBaseUrl,
+                ["E2E_BASE_URL"] = _webBaseUrl,
             });
 
         PreserveLatestFocusedReport();
@@ -333,13 +347,33 @@ internal sealed class ToolRegistry
         return Limit(content, MaxToolOutputCharacters);
     }
 
-    private async Task<string> HttpGetAsync(string route)
+    private async Task<string> HttpGetAsync(string target, string route)
     {
         if (Uri.TryCreate(route, UriKind.Absolute, out _))
             throw new ArgumentException("route must be relative to the configured application origin.");
 
-        var baseUri = new Uri(_appBaseUrl, UriKind.Absolute);
-        var targetUri = new Uri(baseUri, route.TrimStart('/'));
+        var normalizedRoute = route.StartsWith("/", StringComparison.Ordinal)
+            ? route
+            : "/" + route;
+
+        var routeWithoutLeadingSlash = normalizedRoute.TrimStart('/');
+        var normalizedTarget = target.ToLowerInvariant();
+
+        if (normalizedTarget == "web" &&
+            routeWithoutLeadingSlash.StartsWith("api/", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Routes under /api must use target='api', not target='web'.");
+        }
+
+        var baseUri = normalizedTarget switch
+        {
+            "web" => new Uri(_webBaseUrl, UriKind.Absolute),
+            "api" when _apiRuntimeAvailable => new Uri(_apiBaseUrl, UriKind.Absolute),
+            "api" => throw new InvalidOperationException("The API target is unavailable in this review run."),
+            _ => throw new ArgumentException("target must be either 'web' or 'api'."),
+        };
+
+        var targetUri = new Uri(baseUri, routeWithoutLeadingSlash);
 
         using var client = new HttpClient
         {
