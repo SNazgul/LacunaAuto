@@ -34,6 +34,9 @@ export async function gotoApp(page: Page, path: string, readySelector: string) {
 // waiting for "load" alone can return before any component is rendered.
 export async function waitForAppReady(page: Page, readySelector: string) {
   await page.waitForSelector(readySelector, { timeout: 30_000, state: "attached" });
+  // The page shell can render while its API request is still pending.
+  await page.locator(".home-page[aria-busy=true], .listings-page[aria-busy=true], .details-page[aria-busy=true]")
+    .waitFor({ state: "hidden", timeout: 30_000 });
 }
 
 // Writes the given preferences into localStorage and reloads the page so the

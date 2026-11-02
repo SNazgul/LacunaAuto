@@ -23,7 +23,8 @@ internal sealed class AppHost : IAsyncDisposable
     public static Task<AppHost> EnsureWebRunningAsync(
         string repositoryRoot,
         string webBaseUrl,
-        bool reuseRunningApp)
+        bool reuseRunningApp,
+        string apiBaseUrl)
     {
         var projectPath = Path.Combine(
             repositoryRoot,
@@ -39,7 +40,8 @@ internal sealed class AppHost : IAsyncDisposable
             projectPath,
             "LacunaAuto.Web",
             "--reuse-running-app",
-            ReadinessMode.SuccessStatusCode);
+            ReadinessMode.SuccessStatusCode,
+            apiBaseUrl);
     }
 
     public static Task<AppHost> EnsureApiRunningAsync(
@@ -70,7 +72,8 @@ internal sealed class AppHost : IAsyncDisposable
         string projectPath,
         string processName,
         string reuseFlagName,
-        ReadinessMode readinessMode)
+        ReadinessMode readinessMode,
+        string? apiBaseUrl = null)
     {
         if (await IsReadyAsync(appBaseUrl, readinessMode))
         {
@@ -101,6 +104,10 @@ internal sealed class AppHost : IAsyncDisposable
 
         startInfo.Environment["ASPNETCORE_URLS"] = appBaseUrl.TrimEnd('/');
         startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+        if (apiBaseUrl is not null)
+        {
+            startInfo.Environment["ListingsApi__BaseUrl"] = apiBaseUrl;
+        }
 
         var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException($"Failed to start {processName}.");

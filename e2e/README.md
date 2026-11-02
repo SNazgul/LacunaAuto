@@ -1,6 +1,6 @@
 # LacunaAuto UI automation (E2E)
 
-Playwright-driven browser tests for the implemented browsing UI (Milestone 1).
+Playwright-driven browser tests for the API-backed browsing UI (Slice 2.1B).
 These tests live outside the .NET solution and do not affect `dotnet build` /
 `dotnet test`.
 
@@ -15,14 +15,32 @@ npm install
 npx playwright install chromium      # downloads the pinned Chromium build
 ```
 
-Then start the app under test from the repository root:
+Start PostgreSQL, the API, and the Web host from the repository root.
+The Development API applies migrations and seeds the eight fixture listings:
 
 ```powershell
-dotnet run --project src/LacunaAuto.Web/LacunaAuto.Web
+docker compose up -d postgres
+dotnet run --project src/LacunaAuto.Api --launch-profile http
+# In a second terminal:
+dotnet run --project src/LacunaAuto.Web/LacunaAuto.Web --launch-profile http
 ```
 
 The default `http` launch profile serves plain HTTP on
 `http://localhost:5032/`, which is the suite's default base URL.
+
+Web forwards only public listing GET requests to `ListingsApi:BaseUrl`
+(Development default: `http://localhost:5132/`). For custom topology, set
+`ListingsApi__BaseUrl` on the Web process to the API origin. Set this explicitly
+in Production as well; Web fails startup if the HTTP(S) API origin is missing.
+The browser always calls the Web origin, so no browser CORS configuration is needed.
+The Qwen runner passes its configured API origin to the Web process automatically.
+
+The existing regression cases expect the untouched eight Development fixtures.
+`api-browsing.spec.ts` separately intercepts browser responses with deliberately
+different records to prove that Home/Listings/Details consume API data, including
+loading, empty, error/retry, malformed responses, null optionals, parameter changes,
+and cancellation of stale details requests. Its live HTTP case also checks the
+Web-to-API forwarding path and JSON 404 behavior without interception.
 
 ## Running the tests
 
@@ -78,6 +96,7 @@ stay hardcoded.
 
 | Spec | What the assertions establish |
 | --- | --- |
+| `api-browsing.spec.ts` | 12 cases: API-supplied records/IDs/currency on Home and Listings; loading vs empty; failures with retry and no seed fallback; malformed payloads; details 404 vs error; same-component ID changes and stale-response cancellation; live forwarding of list/details and JSON 404 |
 | `runner-config.spec.ts` | The runner's option fixtures report `actionTimeout = 15000`, `navigationTimeout = 30000`, `locale = en-US`, and `baseURL` equal to the effective origin (`E2E_BASE_URL` when set, otherwise `http://localhost:5032/`) |
 | `navigation.spec.ts` | Home seed feed (8 cards); bottom-nav link clicks change the URL; Sell button carries `disabled`; unknown listing id renders the `.not-found` block and its back button returns home; direct request to an unknown route returns HTTP 404 and renders the localized `.not-found-page` inside the app layout (`main` + `nav.bottom-nav`), and its Home button returns to `/`; client-side navigation performed by `window.Blazor.navigateTo` (the call `NavigationManager.NavigateTo` compiles to) starts from rendered Home, sets a marker on the current JS window, tracks main-frame document requests, and asserts the localized not-found heading and URL, that the marker still survives, that **no** new main-frame document request was issued, and that the Home control returns to the rendered 8-card Home page in the same document |
 | `home.spec.ts` | Search-bar click navigates to `/listings`; 6 category chips with exactly one active `All Vehicles`, inactive chips carry `disabled`, and the Filter button is `disabled`; 8 cards with 4 `Just Added` badges; first card click opens `/listings/1` with the matching model heading |
@@ -131,5 +150,7 @@ The fault injection lives only in `negative/`; normal runs are unaffected.
 - Visual appearance is asserted through layout/geometry checks (grid columns,
   overflow, element positions) plus one manual screenshot of the 404 page; no
   screenshot-diffing is used.
-- The `/listings` empty state, filters, sort, sell, chat and the API-backed
-  listing data are out of scope for Milestone 1.
+- Filters, sorting, selling, and chat remain outside this slice. The API-backed
+  empty/error/loading states are now covered; full visual acceptance remains a
+  separate review. The API tests cover publication filtering; the browser suite
+  does not modify the Development database or create unpublished fixtures.

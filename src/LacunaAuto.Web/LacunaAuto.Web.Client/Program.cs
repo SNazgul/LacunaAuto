@@ -10,6 +10,12 @@ builder.Services.AddLocalization();
 
 // Register user preferences service
 builder.Services.AddSingleton<IUserPreferencesService, LocalStorageUserPreferencesService>();
+builder.Services.AddScoped(_ => new HttpClient
+{
+    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
+    Timeout = TimeSpan.FromSeconds(20)
+});
+builder.Services.AddScoped<ListingsClient>();
 
 var host = builder.Build();
 

@@ -66,6 +66,11 @@ LacunaAuto.Web: http://127.0.0.1:5132/
 LacunaAuto.Api: http://127.0.0.1:5133/
 ```
 
+The runner passes its API origin to the Web host as `ListingsApi__BaseUrl`.
+Browser listing requests use the Web origin and are forwarded to that API.
+Explicit reuse of an existing Web process also requires verifying that this
+upstream configuration matches the requested API origin.
+
 The STRATA endpoint is remote/configurable and is **not committed to the repository**.
 Provide the full Chat Completions URL (including `/v1/chat/completions`) through
 `STRATA_CHAT_COMPLETIONS_URL` or `--strata-url`.

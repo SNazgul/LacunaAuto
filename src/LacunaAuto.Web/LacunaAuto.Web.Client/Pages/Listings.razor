@@ -1,13 +1,14 @@
 @page "/listings"
 @using LacunaAuto.UI.Shared.Components
-@using LacunaAuto.Web.Client.Data
+@implements IDisposable
+@inject ListingsClient BrowsingApi
 @using Microsoft.Extensions.Localization
 @inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
 @inject NavigationManager Navigation
 
 <PageTitle>@Localizer["Search"] - Lacuna Auto</PageTitle>
 
-<div class="listings-page">
+<div class="listings-page" aria-busy="@(_isLoading ? "true" : "false")">
     <header class="page-header">
         <button class="back-button" type="button" aria-label="@Localizer["Home"]" @onclick="NavigateBack">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -15,7 +16,7 @@
             </svg>
         </button>
         <div class="header-info">
-            <span class="result-count">@_listings.Count @Localizer["Results"]</span>
+            <span class="result-count">@(_isLoading ? Localizer["Loading"] : _hasError ? Localizer["ErrorLoadingContent"] : $"{_listings.Count} {Localizer["Results"]}")</span>
             <span class="sort-label">@Localizer["Newest"]</span>
         </div>
         <button class="filter-button" type="button" aria-label="@Localizer["Filter"]" disabled>
@@ -29,18 +30,23 @@
     </header>
 
     <div class="listings-content">
-        @if (_listings.Count == 0)
+        @if (_isLoading)
         {
-            <div class="empty-state">
-                <p>@Localizer["NoResultsFound"]</p>
-                <a href="/" class="clear-link">@Localizer["ClearFilters"]</a>
-            </div>
+            <span class="visually-hidden" role="status">@Localizer["Loading"]</span>
+            @for (var i = 0; i < 4; i++)
+            {
+                <SkeletonCard />
+            }
+        }
+        else if (_hasError || _listings.Count == 0)
+        {
+            <BrowsingFeedback HasError="_hasError" OnRetry="LoadAsync" />
         }
         else
         {
             @foreach (var listing in _listings)
             {
-                <VehicleListingCard Model="listing" OnClick="() => NavigateToDetails(listing.Id)" />
+                <VehicleListingCard @key="listing.Id" Model="listing" OnClick="() => NavigateToDetails(listing.Id)" />
             }
         }
     </div>
@@ -49,9 +55,38 @@
 @code {
     private IReadOnlyList<VehicleListingCardModel> _listings = Array.Empty<VehicleListingCardModel>();
 
-    protected override void OnInitialized()
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _isLoading = true;
+    private bool _hasError;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
-        _listings = VehicleListingSeedData.GetAll();
+        _isLoading = true;
+        _hasError = false;
+        _listings = Array.Empty<VehicleListingCardModel>();
+        try
+        {
+            _listings = await BrowsingApi.GetListingsAsync(_lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is HttpRequestException or System.Text.Json.JsonException or OperationCanceledException)
+        {
+            _hasError = true;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
     }
 
     private void NavigateBack()

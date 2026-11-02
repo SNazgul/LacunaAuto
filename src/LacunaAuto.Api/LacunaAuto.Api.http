@@ -4,3 +4,7 @@ GET {{LacunaAuto.Api_HostAddress}}/api/listings
 Accept: application/json
 
 ###
+GET {{LacunaAuto.Api_HostAddress}}/api/listings/1
+Accept: application/json
+
+###

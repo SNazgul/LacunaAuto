@@ -2,14 +2,15 @@
 
 ## Current Goal
 
-Start the listings browsing vertical slice while keeping the accepted browsing UI stable and the app runnable after every change.
+Review the API-backed listings browsing slice while keeping the accepted browsing UI stable and the app runnable after every change.
 
 ## Now
 
 - [x] Define the minimum listing/domain data required by the accepted Home, Listings, and Listing Details UI.
 - [x] Add the first PostgreSQL / EF Core persistence slice and reproducible development data for browsing.
 - [x] Add the minimal public browsing API needed by the existing UI.
-- [ ] Connect the existing browsing UI to the real API without redesigning accepted screens.
+- [x] Connect the existing browsing UI to the real API without redesigning accepted screens.
+- [ ] Complete the larger visual review of the API-backed Home / Listings / Details flow before accepting Slice 2.1B.
 
 Keep this as a small end-to-end slice. Do not start authentication, listing management, photo upload/storage implementation, chat, or Hybrid work in this task.
 
@@ -22,6 +23,22 @@ After the first real listings browsing slice is accepted:
 
 ## Recently Completed
 
+- Milestone 2, Slice 2.1B implemented; PR/visual acceptance pending:
+  - Home, Listings, and Listing Details now read the public API through a shared browser client; removed the client-only `VehicleListingSeedData` and seed fallback.
+  - Added anonymous, published-only `GET /api/listings/{id}` using the current card fields. Missing, unpublished, and non-positive IDs return 404. Descriptions and seller actions retain their existing Development placeholders; no new seller/domain fields were introduced.
+  - Web forwards only the two public listing GET routes to configured `ListingsApi:BaseUrl`. Browser requests stay on the Web origin. Production requires an explicit HTTP(S) API origin; Development defaults to the existing API launch profile at `http://localhost:5132/`.
+  - Qwen's Web process now receives the runner's API origin, including custom-port overrides.
+  - Added localized loading / empty / error states and retry. Details refresh on route-parameter changes and cancel obsolete requests; errors do not fall back to seed records or masquerade as 404.
+  - Verification on 2026-11-02 with .NET SDK 10.0.402:
+    - Web build and Release publish passed; Qwen runner build passed.
+    - Focused API tests: **10/10 passed**, including detail/list contract parity, null optionals, and publication visibility.
+    - Existing shared UI component test: **1/1 passed**.
+    - Playwright full suite: **49/49 passed**, with 12 new API-browsing cases and 0 retries/failures. Deliberately changed browser API payloads prove that the rendered records/IDs/currency come from API responses.
+    - An isolated fresh PostgreSQL 17 test container applied `InitialListingsBrowsing`, seeded IDs 1..8, and reported identity sequence `8 / is_called=true` (next ID 9).
+    - Live API and published Production Web host returned 200 for list/details; a controlled unpublished fixture and missing IDs returned 404 through both origins, with JSON 404 responses from Web.
+    - A separate Web process pointed at an unavailable API returned 502 `application/problem+json` with a trace ID; upstream exception details were not exposed in the response.
+    - Published Release screens exercised at 390px and 1440px: no browser page errors or horizontal overflow. Spot-checked Home, Listings, Details, empty/error and missing-listing screenshots; this is not the larger visual acceptance review.
+  - Full-solution restore remains blocked by the existing `NETSDK1147` MAUI Android workload issue; no workload or Hybrid changes made.
 - Milestone 2, Slice 2.1A backend/persistence foundation implemented (backend only, no UI wiring):
   - Added Core listing domain types independent from `LacunaAuto.UI.Shared`, including minimal card fields plus `IsPublished` and explicit persisted `IsNew` behavior.
   - Added EF Core + PostgreSQL persistence in `LacunaAuto.Data` with explicit mapping (`vehicle_listings` table), constraints, and index for published browsing reads; first migration created: `InitialListingsBrowsing`.
