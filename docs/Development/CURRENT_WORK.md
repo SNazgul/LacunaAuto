@@ -2,7 +2,7 @@
 
 ## Current Goal
 
-Validate the responsive Qwen review infrastructure against the configured STRATA Vision model and GitHub check publishing.
+Integrate the verified responsive Qwen reviewer and continue the listings browsing slice.
 
 ## Now
 
@@ -13,29 +13,21 @@ Validate the responsive Qwen review infrastructure against the configured STRATA
 - [x] Merge Slice 2.1B (PR #19, squash commit `0865ea5`).
 - [x] Add bounded layout and screenshot tools for 390×844, 768×1024, and 1440×900.
 - [x] Add the two-image Vision smoke, PNG transport after tool responses, and the responsive evidence requirement for UI `PASS`.
-- [ ] Verify pixel interpretation on the configured STRATA endpoint and the exact-SHA GitHub artifact/check path.
+- [x] Verify pixel interpretation on the configured STRATA endpoint and the exact-SHA GitHub artifact/check path.
 
 Keep this as a small end-to-end slice. Do not start authentication, listing management, photo upload/storage implementation, chat, or Hybrid work in this task.
 
 ## Next
 
-Run `--strata-vision-smoke` with the configured endpoint and model, then run a
-UI-relevant review and verify the model's interpretation of the PNGs, the
-workflow artifact, and the required check on the tested SHA. Local verification
-confirmed the PNG bytes sent for `/listings` matched the screenshot files at
-all three presets. A local STRATA substitute confirmed `BLOCKED` for disabled
-Vision and a model `PASS` with missing evidence, preserved a model `FAIL`,
-and skipped Vision for non-UI review. A clean-checkout run with the substitute
-passed after collecting all six viewport results and passing the full
-Playwright suite (49/49) on PostgreSQL, API, and Web.
-
-After that work, continue the product roadmap with the first agreed browsing behavior:
+Continue the product roadmap with the first agreed browsing behavior.
 
 - continue milestone 2 with the first agreed filtering / pagination / sorting behavior only as needed;
 - keep prices in each listing's original currency until real conversion is explicitly implemented.
 
 ## Recently Completed
 
+- Responsive review pilot [run #17, attempt 2](https://github.com/SNazgul/LacunaAuto/actions/runs/41611745283/attempts/2) passed on `20d750d` using reviewer code from `cca8346`. STRATA read both smoke-test PNGs. Qwen received six viewport PNGs and layout measurements for `/listings` and `/listings/1`. The workflow published the PNGs, the Markdown and JSON reports, and a successful `Qwen UI Review` check on the tested SHA. Playwright passed 49/49 on PostgreSQL, API, and Web.
+- Local review tests confirmed `BLOCKED` for disabled Vision or a model `PASS` with missing evidence. They also verified that a model `FAIL` is preserved and non-UI reviews skip Vision.
 - Milestone 2, Slice 2.1B implemented and merged in PR #19:
   - Home, Listings, and Listing Details now read the public API through a shared browser client; removed the client-only `VehicleListingSeedData` and seed fallback.
   - Added anonymous, published-only `GET /api/listings/{id}` using the current card fields. Missing, unpublished, and non-positive IDs return 404. Descriptions and seller actions retain their existing Development placeholders; no new seller/domain fields were introduced.
