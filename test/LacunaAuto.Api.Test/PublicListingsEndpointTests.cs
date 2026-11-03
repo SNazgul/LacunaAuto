@@ -327,6 +327,114 @@ public sealed class PublicListingsEndpointTests
     }
 
     [Fact]
+    public async Task GetListingsPage_ShouldApplyFilterSortAndPagingBeforeMaterialization()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 10, isPublished: true, make: "Tesla", model: "Model 3", year: 2024),
+            CreateListing(id: 11, isPublished: true, make: "TESLA", model: "Model Y", year: 2022),
+            CreateListing(id: 12, isPublished: true, make: "Tesla", model: "Model S", year: 2024),
+            CreateListing(id: 13, isPublished: true, make: "Tesla", model: "Model X", year: 2023),
+            CreateListing(id: 14, isPublished: true, make: "BMW", model: "X5", year: 2025),
+            CreateListing(id: 15, isPublished: false, make: "Tesla", model: "Roadster", year: 2026)
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings/page?make=tesla&sort=year-desc&page=2&pageSize=2", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await response.Content.ReadFromJsonAsync<PublicListingsPageResponse>(cancellationToken);
+
+        Assert.NotNull(page);
+        Assert.Equal(2, page.Page);
+        Assert.Equal(2, page.PageSize);
+        Assert.Equal(4, page.TotalCount);
+        Assert.Equal(2, page.TotalPages);
+        Assert.Equal([13, 11], page.Items.Select(listing => listing.Id));
+    }
+
+    [Fact]
+    public async Task GetListingsPage_ShouldReturnEmptyItemsAndFilteredTotalsWhenPageExceedsLastPage()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "BMW", model: "X5"),
+            CreateListing(id: 3, isPublished: false, make: "Audi", model: "Q5")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings/page?page=2147483647&pageSize=8", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await response.Content.ReadFromJsonAsync<PublicListingsPageResponse>(cancellationToken);
+
+        Assert.NotNull(page);
+        Assert.Equal(2147483647, page.Page);
+        Assert.Equal(8, page.PageSize);
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal(1, page.TotalPages);
+        Assert.Empty(page.Items);
+    }
+
+    [Theory]
+    [InlineData("/api/listings/page?page=0")]
+    [InlineData("/api/listings/page?page=-1")]
+    [InlineData("/api/listings/page?page=abc")]
+    [InlineData("/api/listings/page?pageSize=0")]
+    [InlineData("/api/listings/page?pageSize=25")]
+    [InlineData("/api/listings/page?pageSize=abc")]
+    public async Task GetListingsPage_ShouldReturnProblemDetailsForMalformedOrOutOfRangePagination(string route)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync([CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3")], cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync(route, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal("Invalid pagination parameters.", payload.RootElement.GetProperty("title").GetString());
+        Assert.True(payload.RootElement.TryGetProperty("traceId", out var traceId));
+        Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));
+    }
+
+    [Fact]
+    public async Task GetListingMakes_ShouldReturnDistinctPublishedMakesAcrossAllPages()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "TESLA", model: "Model Y"),
+            CreateListing(id: 3, isPublished: true, make: "BMW", model: "X5"),
+            CreateListing(id: 4, isPublished: false, make: "Audi", model: "Q5")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        var makes = await client.GetFromJsonAsync<List<string>>("/api/listings/makes", cancellationToken);
+
+        Assert.NotNull(makes);
+        Assert.Equal(2, makes.Select(make => make.ToLowerInvariant()).Distinct().Count());
+        Assert.Contains(makes, make => string.Equals(make, "tesla", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(makes, make => string.Equals(make, "bmw", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(makes, make => string.Equals(make, "audi", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task GetListings_ShouldReturnPublishedListingsInIdOrderWithExpectedValues()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -531,6 +639,19 @@ public sealed class PublicListingsEndpointTests
         public string? ImageUrl { get; init; }
 
         public bool IsNew { get; init; }
+    }
+
+    private sealed class PublicListingsPageResponse
+    {
+        public List<PublicListingCardResponse> Items { get; init; } = [];
+
+        public int Page { get; init; }
+
+        public int PageSize { get; init; }
+
+        public int TotalCount { get; init; }
+
+        public int TotalPages { get; init; }
     }
 }
 

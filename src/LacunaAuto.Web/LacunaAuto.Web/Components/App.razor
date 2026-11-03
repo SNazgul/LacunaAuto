@@ -21,6 +21,23 @@
     <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script>
+        window.lacunaListings = window.lacunaListings || {};
+        window.lacunaListings.focusListingsResultsAfterPaging = function (headingSelector, firstResultSelector, headerSelector)
+        {
+            const heading = document.querySelector(headingSelector);
+            const firstResult = document.querySelector(firstResultSelector);
+            const header = document.querySelector(headerSelector);
+            const target = firstResult || heading;
+            if (!(target instanceof HTMLElement))
+            {
+                return;
+            }
+
+            const headerHeight = header instanceof HTMLElement ? header.getBoundingClientRect().height : 0;
+            const targetTop = target.getBoundingClientRect().top + window.scrollY;
+            window.scrollTo({ top: Math.max(0, targetTop - headerHeight - 8), behavior: "auto" });
+        };
+
         if ('serviceWorker' in navigator)
         {
             window.addEventListener('load', function ()

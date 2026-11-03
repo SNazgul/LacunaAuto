@@ -127,6 +127,68 @@ public sealed class ListingsClientTests
     }
 
     [Fact]
+    public async Task GetListingsPage_ShouldAppendPagingMakeAndSortQueries()
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings/page", request.RequestUri!.AbsolutePath);
+            Assert.Equal("?make=Auto%25_%20Group&sort=year-desc&page=2&pageSize=8", request.RequestUri.Query);
+            return JsonResponse($$"""
+                {
+                  "items": [{{_cardJson}}],
+                  "page": 2,
+                  "pageSize": 8,
+                  "totalCount": 9,
+                  "totalPages": 2
+                }
+                """);
+        });
+        var service = new ListingsClient(http);
+
+        var page = await service.GetListingsPageAsync("Auto%_ Group", "year-desc", 2, 8, TestContext.Current.CancellationToken);
+        Assert.Equal(2, page.Page);
+        Assert.Equal(8, page.PageSize);
+        Assert.Equal(9, page.TotalCount);
+        Assert.Equal(2, page.TotalPages);
+        Assert.Equal(8, Assert.Single(page.Items).Id);
+    }
+
+    [Fact]
+    public async Task GetListingMakes_ShouldReadAndNormalizeDistinctValues()
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings/makes", request.RequestUri!.AbsolutePath);
+            return JsonResponse("""["Tesla", "TESLA", "BMW"]""");
+        });
+        var service = new ListingsClient(http);
+
+        var makes = await service.GetListingMakesAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(["BMW", "Tesla"], makes);
+    }
+
+    [Theory]
+    [InlineData(0, 8)]
+    [InlineData(1, 0)]
+    [InlineData(1, 25)]
+    public async Task GetListingsPage_ShouldValidatePagingArguments(int page, int pageSize)
+    {
+        using var http = CreateHttpClient(_ => JsonResponse("{}"));
+        var service = new ListingsClient(http);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.GetListingsPageAsync(null, null, page, pageSize, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetListingsPage_ShouldRejectNullPayload()
+    {
+        using var http = CreateHttpClient(_ => JsonResponse("null"));
+        await Assert.ThrowsAsync<JsonException>(() =>
+            new ListingsClient(http).GetListingsPageAsync(null, null, 1, 8, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task GetListing_ShouldRequestOnlyTheSelectedId()
     {
         var requests = 0;

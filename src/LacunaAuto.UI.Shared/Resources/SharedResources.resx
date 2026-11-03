@@ -198,6 +198,21 @@
   <data name="ModelYearOldestFirst" xml:space="preserve">
     <value>Oldest first</value>
   </data>
+  <data name="Previous" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="PageIndicator" xml:space="preserve">
+    <value>Page {0} of {1}</value>
+  </data>
+  <data name="ListingsPagination" xml:space="preserve">
+    <value>Listings pagination</value>
+  </data>
+  <data name="ErrorLoadingMakes" xml:space="preserve">
+    <value>Unable to load make options</value>
+  </data>
   <data name="NotFound" xml:space="preserve">
     <value>Not found</value>
   </data>

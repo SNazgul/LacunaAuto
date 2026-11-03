@@ -5,6 +5,7 @@
 @using Microsoft.Extensions.Localization
 @inject IStringLocalizer<LacunaAuto.UI.Shared.Resources.SharedResources> Localizer
 @inject NavigationManager Navigation
+@inject IJSRuntime JsRuntime
 
 <PageTitle>@Localizer["Search"] - Lacuna Auto</PageTitle>
 
@@ -41,16 +42,28 @@
                         @onchange="OnMakeSelectionChanged"
                         disabled="@_isLoading">
                     <option value="">@Localizer["AllMakes"]</option>
+                    @if (IsSelectedMakeMissingFromOptions())
+                    {
+                        <option value="@_selectedMake">@_selectedMake</option>
+                    }
                     @foreach (var make in _availableMakes)
                     {
                         <option value="@make">@make</option>
                     }
                 </select>
             </div>
+            @if (_hasMakeOptionsError)
+            {
+                <div class="make-options-error" role="alert">
+                    <span>@Localizer["ErrorLoadingMakes"]</span>
+                    <button type="button" @onclick="LoadAsync" disabled="@_isLoading">@Localizer["TryAgain"]</button>
+                </div>
+            }
         </div>
     </header>
 
-    <div class="listings-content">
+    <div class="listings-content" role="region" aria-labelledby="listings-results-heading">
+        <h2 id="listings-results-heading" class="visually-hidden" tabindex="-1" @ref="_resultsHeading">@Localizer["Results"]</h2>
         @if (_isLoading)
         {
             <span class="visually-hidden" role="status">@Localizer["Loading"]</span>
@@ -71,6 +84,25 @@
             }
         }
     </div>
+
+    @if (!_isLoading && !_hasError && _totalCount > 0)
+    {
+        <nav class="pagination-controls" aria-label="@Localizer["ListingsPagination"]">
+            <button type="button"
+                    class="pagination-button"
+                    @onclick="GoToPreviousPage"
+                    disabled="@(!CanGoToPreviousPage())">
+                @Localizer["Previous"]
+            </button>
+            <span class="pagination-indicator">@PageIndicatorText()</span>
+            <button type="button"
+                    class="pagination-button"
+                    @onclick="GoToNextPage"
+                    disabled="@(!CanGoToNextPage())">
+                @Localizer["Next"]
+            </button>
+        </nav>
+    }
 </div>
 
 @code {
@@ -78,19 +110,47 @@
 
     private const string _sortYearDesc = "year-desc";
     private const string _sortYearAsc = "year-asc";
+    private const int _defaultPage = 1;
+    private const int _pageSize = 8;
 
     private readonly List<string> _availableMakes = [];
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _activeRequest;
     private bool _isLoading = true;
     private bool _hasError;
+    private bool _hasMakeOptionsError;
     private string _selectedMake = string.Empty;
     private string _selectedSort = string.Empty;
+    private int _currentPage = _defaultPage;
+    private int _totalCount;
+    private int _totalPages;
     private int _loadVersion;
+    private bool _focusResultsOnNextRender;
+    private ElementReference _resultsHeading;
 
     protected override Task OnInitializedAsync() => LoadAsync();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusResultsOnNextRender || _isLoading || _hasError)
+        {
+            return;
+        }
 
-    private async Task LoadAsync()
+        _focusResultsOnNextRender = false;
+        await JsRuntime.InvokeVoidAsync(
+            "lacunaListings.focusListingsResultsAfterPaging",
+            "#listings-results-heading",
+            ".listings-content .listing-card:first-of-type",
+            ".listings-page .page-header");
+        await _resultsHeading.FocusAsync(preventScroll: true);
+    }
+
+    private Task LoadAsync()
+    {
+        return LoadAsync(allowLastPageRecovery: true, focusResultsAfterSuccess: false);
+    }
+
+    private async Task LoadAsync(bool allowLastPageRecovery, bool focusResultsAfterSuccess)
     {
         var request = StartNewRequest();
         var requestVersion = ++_loadVersion;
@@ -102,17 +162,39 @@
         {
             var selectedMake = SelectedMakeOrNull();
             var selectedSort = SelectedSortOrNull();
-            var listings = await BrowsingApi.GetListingsAsync(selectedMake, selectedSort, request.Token);
+            var listingsPage = await BrowsingApi.GetListingsPageAsync(
+                selectedMake,
+                selectedSort,
+                _currentPage,
+                _pageSize,
+                request.Token);
+
             if (!IsCurrentRequest(requestVersion, request))
             {
                 return;
             }
 
-            _listings = listings;
-            if (_availableMakes.Count == 0 && selectedMake is null)
+            if (allowLastPageRecovery &&
+                listingsPage.TotalCount > 0 &&
+                listingsPage.Items.Count == 0 &&
+                listingsPage.TotalPages > 0 &&
+                _currentPage > listingsPage.TotalPages)
             {
-                _availableMakes.AddRange(CreateMakeOptions(listings));
+                _currentPage = listingsPage.TotalPages;
+                await LoadAsync(allowLastPageRecovery: false, focusResultsAfterSuccess);
+                return;
             }
+
+            _listings = listingsPage.Items;
+            _totalCount = listingsPage.TotalCount;
+            _totalPages = listingsPage.TotalPages;
+
+            if (_availableMakes.Count == 0 || _hasMakeOptionsError)
+            {
+                await LoadMakeOptionsAsync(requestVersion, request);
+            }
+
+            _focusResultsOnNextRender = focusResultsAfterSuccess;
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested || _lifetime.IsCancellationRequested)
         {
@@ -122,6 +204,7 @@
             if (IsCurrentRequest(requestVersion, request))
             {
                 _hasError = true;
+                _focusResultsOnNextRender = false;
             }
         }
         finally
@@ -137,6 +220,32 @@
             }
 
             request.Dispose();
+        }
+    }
+
+    private async Task LoadMakeOptionsAsync(int requestVersion, CancellationTokenSource request)
+    {
+        try
+        {
+            var makes = await BrowsingApi.GetListingMakesAsync(request.Token);
+            if (!IsCurrentRequest(requestVersion, request))
+            {
+                return;
+            }
+
+            _availableMakes.Clear();
+            _availableMakes.AddRange(makes);
+            _hasMakeOptionsError = false;
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested || _lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is HttpRequestException or System.Text.Json.JsonException or OperationCanceledException)
+        {
+            if (IsCurrentRequest(requestVersion, request))
+            {
+                _hasMakeOptionsError = true;
+            }
         }
     }
 
@@ -161,13 +270,37 @@
     private async Task OnMakeSelectionChanged(ChangeEventArgs args)
     {
         _selectedMake = args.Value?.ToString() ?? string.Empty;
+        _currentPage = _defaultPage;
         await LoadAsync();
     }
 
     private async Task OnSortSelectionChanged(ChangeEventArgs args)
     {
         _selectedSort = args.Value?.ToString() ?? string.Empty;
+        _currentPage = _defaultPage;
         await LoadAsync();
+    }
+
+    private async Task GoToPreviousPage()
+    {
+        if (!CanGoToPreviousPage())
+        {
+            return;
+        }
+
+        _currentPage--;
+        await LoadAsync(allowLastPageRecovery: true, focusResultsAfterSuccess: true);
+    }
+
+    private async Task GoToNextPage()
+    {
+        if (!CanGoToNextPage())
+        {
+            return;
+        }
+
+        _currentPage++;
+        await LoadAsync(allowLastPageRecovery: true, focusResultsAfterSuccess: true);
     }
 
     private CancellationTokenSource StartNewRequest()
@@ -200,24 +333,31 @@
         return normalizedSort is _sortYearDesc or _sortYearAsc ? normalizedSort : null;
     }
 
-    private static List<string> CreateMakeOptions(IReadOnlyList<VehicleListingCardModel> listings)
+    private bool CanGoToPreviousPage()
     {
-        var seenMakes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var makes = new List<string>();
-        foreach (var listing in listings)
-        {
-            if (seenMakes.Add(listing.Make))
-            {
-                makes.Add(listing.Make);
-            }
-        }
+        return !_isLoading && _currentPage > 1;
+    }
 
-        makes.Sort(StringComparer.OrdinalIgnoreCase);
-        return makes;
+    private bool CanGoToNextPage()
+    {
+        return !_isLoading && _totalPages > 0 && _currentPage < _totalPages;
+    }
+
+    private bool IsSelectedMakeMissingFromOptions()
+    {
+        return !string.IsNullOrWhiteSpace(_selectedMake) &&
+            !_availableMakes.Any(make => string.Equals(make, _selectedMake, StringComparison.OrdinalIgnoreCase));
     }
 
     private string ResultCountText()
     {
-        return _listings.Count == 1 ? $"1 {Localizer["Result"]}" : $"{_listings.Count} {Localizer["Results"]}";
+        return _totalCount == 1 ? $"1 {Localizer["Result"]}" : $"{_totalCount} {Localizer["Results"]}";
+    }
+
+    private string PageIndicatorText()
+    {
+        var visibleTotalPages = Math.Max(_totalPages, 1);
+        var visiblePage = _totalPages == 0 ? _defaultPage : Math.Min(_currentPage, visibleTotalPages);
+        return Localizer["PageIndicator", visiblePage, visibleTotalPages];
     }
 }
