@@ -26,6 +26,13 @@ Continue the product roadmap with the first agreed browsing behavior.
 
 ## Recently Completed
 
+- Listings make-filter follow-up: localized singular result count on `/listings` when exactly one listing is shown.
+  - Added `Result` localization entries for EN/UK/RU and updated Listings header text logic to keep existing loading/error/multi-result behavior unchanged.
+  - Extended the live Web-proxy seeded `Volkswagen` filter test to assert `1 result` after selecting the make and `8 results` after clearing to `All makes`.
+  - Verification on 2026-11-03:
+    - `dotnet build src/LacunaAuto.Web/LacunaAuto.Web/LacunaAuto.Web.csproj` — passed (existing IDE0040 warnings only).
+    - `dotnet test test/LacunaAuto.Api.Test/LacunaAuto.Api.Test.csproj` — **17/17 passed**.
+    - `npx playwright test specs/listings.spec.ts` — **6/6 passed**.
 - Milestone 2 make-filter slice implemented on `feature/listings-make-filter`.
   - The Listings page loads available makes from the unfiltered API response, preserves the options through filtered and empty states, and clears the filter with “All makes.”
   - The Web proxy forwards the encoded optional `make` parameter. The PostgreSQL query applies exact case-insensitive matching to published listings and preserves the existing order.

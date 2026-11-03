@@ -169,8 +169,10 @@ test.describe("Listings screen", () => {
     await makeFilter.selectOption("Volkswagen");
     await expect(page.locator(".listing-card")).toHaveCount(1);
     await expect(page.locator(".make-label")).toHaveText("Volkswagen");
+    expect(normalizeSpaces(await page.locator(".result-count").innerText())).toBe("1 result");
 
     await makeFilter.selectOption("");
     await expect(page.locator(".listing-card")).toHaveCount(8);
+    expect(normalizeSpaces(await page.locator(".result-count").innerText())).toBe("8 results");
   });
 });

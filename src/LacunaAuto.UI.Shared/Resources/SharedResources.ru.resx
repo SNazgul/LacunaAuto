@@ -177,6 +177,9 @@
   <data name="Results" xml:space="preserve">
     <value>результатов</value>
   </data>
+  <data name="Result" xml:space="preserve">
+    <value>результат</value>
+  </data>
   <data name="Newest" xml:space="preserve">
     <value>Новейшие</value>
   </data>

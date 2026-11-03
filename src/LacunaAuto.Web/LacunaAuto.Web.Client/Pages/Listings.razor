@@ -16,7 +16,7 @@
             </svg>
         </button>
         <div class="header-info">
-            <span class="result-count">@(_isLoading ? Localizer["Loading"] : _hasError ? Localizer["ErrorLoadingContent"] : $"{_listings.Count} {Localizer["Results"]}")</span>
+            <span class="result-count">@(_isLoading ? Localizer["Loading"] : _hasError ? Localizer["ErrorLoadingContent"] : ResultCountText())</span>
             <span class="sort-label">@Localizer["Newest"]</span>
         </div>
         <div class="make-filter">
@@ -179,5 +179,9 @@
         makes.Sort(StringComparer.OrdinalIgnoreCase);
         return makes;
     }
-}
 
+    private string ResultCountText()
+    {
+        return _listings.Count == 1 ? $"1 {Localizer["Result"]}" : $"{_listings.Count} {Localizer["Results"]}";
+    }
+}
