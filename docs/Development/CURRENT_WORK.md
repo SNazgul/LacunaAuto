@@ -21,11 +21,29 @@ Keep this as a small end-to-end slice. Do not start authentication, listing mana
 
 Continue the product roadmap with the first agreed browsing behavior.
 
-- continue milestone 2 with the first agreed filtering / pagination / sorting behavior only as needed;
+- continue milestone 2 with the next agreed browsing behavior (pagination and additional filters in separate slices);
 - keep prices in each listing's original currency until real conversion is explicitly implemented.
 
 ## Recently Completed
 
+- Listings year-sort UX follow-up on `feature/listings-year-sort`: made the two model-year directions visually distinct in the closed selector at 390px for EN/UK/RU.
+  - Shortened localized sort options so distinguishing words appear first (`Newest first` / `Oldest first`, `Новіші спочатку` / `Старіші спочатку`, `Новые сначала` / `Старые сначала`).
+  - Kept model-year context in the sort control accessible name (`Sort by model year` and localized equivalents).
+  - Extended Playwright coverage at 390px to verify both selected sort states and selector viewport bounds in English, Ukrainian, and Russian.
+  - Verification on 2026-11-03:
+    - `npm --prefix e2e test -- specs/listings.spec.ts specs/preferences-localization.spec.ts` — **17/17 passed**.
+- Listings year-sort slice implemented on `feature/listings-year-sort`.
+  - Replaced the static `Newest` text on `/listings` with a localized sort selector: `Default order`, `Newest first`, and `Oldest first` (EN/UK/RU localized).
+  - Added optional `sort=year-desc|year-asc` flow through the browser client, Web proxy, and API. Omitted/blank/unsupported sort values now keep default ID ordering.
+  - Applied sorting after published-only and make filtering in PostgreSQL-backed reads, with required tie-breaker `Id ASC` for equal years.
+  - Preserved state composition: changing make keeps sort, changing sort keeps make, clearing make keeps sort, and returning to default order keeps make.
+  - Added coverage for sorting directions, tie-break behavior, make+sort composition, 390px dual-control viewport safety, Home request query omissions, and live Web-proxy forwarding.
+  - Verification on 2026-11-03:
+    - `dotnet test test/LacunaAuto.Api.Test/LacunaAuto.Api.Test.csproj` — **24/24 passed**.
+    - `dotnet test test/LacunaAuto.UI.Shared.Tests/LacunaAuto.UI.Shared.Tests.csproj` — **18/18 passed**.
+    - `npm --prefix e2e test -- specs/listings.spec.ts specs/api-browsing.spec.ts specs/home.spec.ts specs/preferences-localization.spec.ts` — **32/32 passed**.
+    - `npm --prefix e2e test` — **53/53 passed**.
+    - `dotnet restore/build/test LacunaAuto.sln` — blocked by existing `NETSDK1147` MAUI Android workload requirement (`LacunaAuto.Hybrid` / `LacunaAuto.Frontend`), unchanged by this slice.
 - Listings make-filter follow-up: localized singular result count on `/listings` when exactly one listing is shown.
   - Added `Result` localization entries for EN/UK/RU and updated Listings header text logic to keep existing loading/error/multi-result behavior unchanged.
   - Extended the live Web-proxy seeded `Volkswagen` filter test to assert `1 result` after selecting the make and `8 results` after clearing to `All makes`.

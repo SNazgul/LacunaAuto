@@ -2,12 +2,15 @@ import { test, expect } from "@playwright/test";
 import { gotoApp, ensurePreferences, DEFAULT_PREFERENCES, normalizeSpaces, pollLoadedImages } from "../helpers/app";
 
 test.describe("Listings screen", () => {
-  test("header shows result count and sort label", async ({ page }) => {
+  test("header shows result count and default sort selector", async ({ page }) => {
     await gotoApp(page, "/listings", ".listings-page");
     await ensurePreferences(page, DEFAULT_PREFERENCES, ".listings-page");
 
     expect(normalizeSpaces(await page.locator(".result-count").innerText())).toBe("8 results");
-    expect(normalizeSpaces(await page.locator(".sort-label").innerText())).toBe("Newest");
+    const sortFilter = page.getByRole("combobox", { name: "Sort by model year" });
+    await expect(sortFilter.locator("option")).toHaveText(["Default order", "Newest first", "Oldest first"]);
+    await expect(sortFilter).toHaveValue("");
+    await expect(sortFilter.locator("option:checked")).toHaveText("Default order");
   });
 
   test("back button returns home", async ({ page }) => {
@@ -107,7 +110,109 @@ test.describe("Listings screen", () => {
     expect(requestedMakes.filter((value) => value === null).length).toBeGreaterThan(0);
   });
 
-  test("make selector stays within 390px with long make and still clears", async ({ page }) => {
+  test("make and sort compose, preserve selections, and honor year tie-breakers", async ({ page }) => {
+    const allListings = [
+      {
+        id: 1, make: "Tesla", model: "Alpha", trimOrVariant: "Long Range",
+        year: 2024, price: 45000, originalCurrencyCode: "USD", mileage: 12000,
+        fuelType: "Electric", transmission: "Automatic", location: "Kyiv, Ukraine",
+        imageUrl: "/images/vehicles/tesla-model-3.svg", isNew: true,
+      },
+      {
+        id: 2, make: "Tesla", model: "Bravo", trimOrVariant: "Base",
+        year: 2022, price: 35000, originalCurrencyCode: "USD", mileage: 25000,
+        fuelType: "Electric", transmission: "Automatic", location: "Lviv, Ukraine",
+        imageUrl: "/images/vehicles/tesla-model-3.svg", isNew: false,
+      },
+      {
+        id: 3, make: "Tesla", model: "Charlie", trimOrVariant: "Plaid",
+        year: 2024, price: 65000, originalCurrencyCode: "USD", mileage: 9000,
+        fuelType: "Electric", transmission: "Automatic", location: "Odesa, Ukraine",
+        imageUrl: "/images/vehicles/tesla-model-3.svg", isNew: true,
+      },
+      {
+        id: 4, make: "BMW", model: "Delta", trimOrVariant: "xDrive40i",
+        year: 2025, price: 72000, originalCurrencyCode: "USD", mileage: 3000,
+        fuelType: "Petrol", transmission: "Automatic", location: "Dnipro, Ukraine",
+        imageUrl: "/images/vehicles/bmw-x5.svg", isNew: true,
+      },
+      {
+        id: 5, make: "Tesla", model: "Echo", trimOrVariant: "Performance",
+        year: 2023, price: 53000, originalCurrencyCode: "USD", mileage: 11000,
+        fuelType: "Electric", transmission: "Automatic", location: "Kharkiv, Ukraine",
+        imageUrl: "/images/vehicles/tesla-model-3.svg", isNew: false,
+      },
+    ];
+    const requested = new Array<{ make: string | null; sort: string | null }>();
+
+    await page.route("**/api/listings*", async route => {
+      const url = new URL(route.request().url());
+      const make = url.searchParams.get("make");
+      const sort = url.searchParams.get("sort");
+      requested.push({ make, sort });
+
+      const filtered = make === null || make.trim() === ""
+        ? [...allListings]
+        : allListings.filter((listing) => listing.make === make);
+
+      const response = sort === "year-desc"
+        ? filtered.sort((a, b) => b.year - a.year || a.id - b.id)
+        : sort === "year-asc"
+          ? filtered.sort((a, b) => a.year - b.year || a.id - b.id)
+          : filtered.sort((a, b) => a.id - b.id);
+
+      await route.fulfill({ json: response });
+    });
+
+    await gotoApp(page, "/listings", ".listings-page");
+    await ensurePreferences(page, DEFAULT_PREFERENCES, ".listings-page");
+
+    const makeFilter = page.locator("#listings-make-filter");
+    const sortFilter = page.locator("#listings-sort-filter");
+
+    await makeFilter.selectOption("Tesla");
+    await expect(page.locator(".model-heading")).toHaveText([
+      "Alpha Long Range",
+      "Bravo Base",
+      "Charlie Plaid",
+      "Echo Performance",
+    ]);
+    await expect(sortFilter).toHaveValue("");
+
+    await sortFilter.selectOption("year-desc");
+    await expect(makeFilter).toHaveValue("Tesla");
+    await expect(page.locator(".model-heading")).toHaveText([
+      "Alpha Long Range",
+      "Charlie Plaid",
+      "Echo Performance",
+      "Bravo Base",
+    ]);
+
+    await makeFilter.selectOption("");
+    await expect(sortFilter).toHaveValue("year-desc");
+    await expect(page.locator(".model-heading")).toHaveText([
+      "Delta xDrive40i",
+      "Alpha Long Range",
+      "Charlie Plaid",
+      "Echo Performance",
+      "Bravo Base",
+    ]);
+
+    await makeFilter.selectOption("Tesla");
+    await sortFilter.selectOption("");
+    await expect(makeFilter).toHaveValue("Tesla");
+    await expect(page.locator(".model-heading")).toHaveText([
+      "Alpha Long Range",
+      "Bravo Base",
+      "Charlie Plaid",
+      "Echo Performance",
+    ]);
+
+    expect(requested.some((item) => item.make === "Tesla" && item.sort === "year-desc")).toBe(true);
+    expect(requested.some((item) => item.make === null && item.sort === "year-desc")).toBe(true);
+  });
+
+  test("make and sort selectors stay within 390px, show distinct sort states, and remain usable", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     const longMake = "Straßenfahrzeugmanufaktur-International";
@@ -141,23 +246,49 @@ test.describe("Listings screen", () => {
     await ensurePreferences(page, DEFAULT_PREFERENCES, ".listings-page");
 
     const makeFilter = page.locator("#listings-make-filter");
+    const sortFilter = page.getByRole("combobox", { name: "Sort by model year" });
     const viewport = page.viewportSize();
     expect(viewport).not.toBeNull();
 
-    const initialBounds = await makeFilter.boundingBox();
-    expect(initialBounds).not.toBeNull();
-    expect(initialBounds!.x).toBeGreaterThanOrEqual(0);
-    expect(initialBounds!.x + initialBounds!.width).toBeLessThanOrEqual(viewport!.width);
+    const assertControlsWithinViewport = async () => {
+      const sortBounds = await sortFilter.boundingBox();
+      const makeBounds = await makeFilter.boundingBox();
+
+      expect(sortBounds).not.toBeNull();
+      expect(makeBounds).not.toBeNull();
+
+      expect(sortBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(sortBounds!.x + sortBounds!.width).toBeLessThanOrEqual(viewport!.width);
+      expect(makeBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(makeBounds!.x + makeBounds!.width).toBeLessThanOrEqual(viewport!.width);
+      expect(
+        sortBounds!.x + sortBounds!.width <= makeBounds!.x
+          || makeBounds!.x + makeBounds!.width <= sortBounds!.x
+          || sortBounds!.y + sortBounds!.height <= makeBounds!.y
+          || makeBounds!.y + makeBounds!.height <= sortBounds!.y
+      ).toBe(true);
+    };
+
+    await expect(sortFilter.locator("option:checked")).toHaveText("Default order");
+    await assertControlsWithinViewport();
+
+    await sortFilter.selectOption("year-desc");
+    await expect(sortFilter).toHaveValue("year-desc");
+    await expect(sortFilter.locator("option:checked")).toHaveText("Newest first");
+    await assertControlsWithinViewport();
 
     await makeFilter.selectOption(longMake);
     await expect(page.locator(".listing-card")).toHaveCount(1);
     await expect(page.locator(".make-label")).toHaveText(longMake);
+    await assertControlsWithinViewport();
 
-    const selectedBounds = await makeFilter.boundingBox();
-    expect(selectedBounds).not.toBeNull();
-    expect(selectedBounds!.x + selectedBounds!.width).toBeLessThanOrEqual(viewport!.width);
+    await sortFilter.selectOption("year-asc");
+    await expect(sortFilter).toHaveValue("year-asc");
+    await expect(sortFilter.locator("option:checked")).toHaveText("Oldest first");
+    await assertControlsWithinViewport();
 
     await makeFilter.selectOption("");
+    await expect(sortFilter).toHaveValue("year-asc");
     await expect(page.locator(".listing-card")).toHaveCount(2);
   });
 

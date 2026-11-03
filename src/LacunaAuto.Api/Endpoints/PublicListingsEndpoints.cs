@@ -8,13 +8,17 @@ namespace LacunaAuto.Api.Endpoints;
 
 public static class PublicListingsEndpoints
 {
+    private const string _sortYearDesc = "year-desc";
+    private const string _sortYearAsc = "year-asc";
+
     public static IEndpointRouteBuilder MapPublicListingsEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet(
                 "/api/listings",
-                async (string? make, LacunaAutoDbContext dbContext, CancellationToken cancellationToken) =>
+                async (string? make, string? sort, LacunaAutoDbContext dbContext, CancellationToken cancellationToken) =>
                 {
                     var normalizedMake = string.IsNullOrWhiteSpace(make) ? null : make.Trim();
+                    var normalizedSort = NormalizeSort(sort);
 
                     var publishedListingsQuery = dbContext.Listings
                         .AsNoTracking()
@@ -25,8 +29,9 @@ public static class PublicListingsEndpoints
                         publishedListingsQuery = ApplyMakeFilter(publishedListingsQuery, dbContext, normalizedMake);
                     }
 
-                    var publishedListings = await publishedListingsQuery
-                        .OrderBy(listing => listing.Id)
+                    var orderedListingsQuery = ApplySort(publishedListingsQuery, normalizedSort);
+
+                    var publishedListings = await orderedListingsQuery
                         .Select(
                             listing =>
                                 new PublicListingProjection
@@ -73,7 +78,7 @@ public static class PublicListingsEndpoints
             .AllowAnonymous()
             .WithName("GetListings")
             .WithSummary("Gets published listings for public browsing.")
-            .WithDescription("Returns listing card data for published listings ordered by listing ID. Optional `make` applies an exact case-insensitive match.")
+            .WithDescription("Returns listing card data for published listings. Optional `make` applies an exact case-insensitive match. Optional `sort` supports `year-desc` and `year-asc`; default ordering uses listing ID ascending.")
             .Produces<List<PublicListingCardDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
@@ -140,6 +145,31 @@ public static class PublicListingsEndpoints
         }
 
         return listings.Where(listing => string.Equals(listing.Make, make, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private static IOrderedQueryable<VehicleListing> ApplySort(IQueryable<VehicleListing> listings, string? sort)
+    {
+        return sort switch
+        {
+            _sortYearDesc => listings
+                .OrderByDescending(listing => listing.Year)
+                .ThenBy(listing => listing.Id),
+            _sortYearAsc => listings
+                .OrderBy(listing => listing.Year)
+                .ThenBy(listing => listing.Id),
+            _ => listings.OrderBy(listing => listing.Id)
+        };
+    }
+
+    private static string? NormalizeSort(string? sort)
+    {
+        if (string.IsNullOrWhiteSpace(sort))
+        {
+            return null;
+        }
+
+        var normalizedSort = sort.Trim();
+        return normalizedSort is _sortYearDesc or _sortYearAsc ? normalizedSort : null;
     }
 
     private static string EscapeLikePattern(string value)

@@ -218,6 +218,115 @@ public sealed class PublicListingsEndpointTests
     }
 
     [Fact]
+    public async Task GetListings_ShouldSortPublishedListingsByYearDescendingThenId()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 4, isPublished: true, make: "Toyota", model: "Corolla", year: 2019),
+            CreateListing(id: 3, isPublished: true, make: "Honda", model: "Civic", year: 2022),
+            CreateListing(id: 2, isPublished: true, make: "Mazda", model: "3", year: 2022),
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3", year: 2024),
+            CreateListing(id: 5, isPublished: false, make: "Ford", model: "Mustang", year: 2025)
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings?sort=year-desc", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Equal([1, 2, 3, 4], listings.Select(listing => listing.Id));
+    }
+
+    [Fact]
+    public async Task GetListings_ShouldSortPublishedListingsByYearAscendingThenId()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 4, isPublished: true, make: "Toyota", model: "Corolla", year: 2019),
+            CreateListing(id: 3, isPublished: true, make: "Honda", model: "Civic", year: 2022),
+            CreateListing(id: 2, isPublished: true, make: "Mazda", model: "3", year: 2022),
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3", year: 2024),
+            CreateListing(id: 5, isPublished: false, make: "Ford", model: "Mustang", year: 2025)
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings?sort=year-asc", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Equal([4, 2, 3, 1], listings.Select(listing => listing.Id));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("?sort=")]
+    [InlineData("?sort=%20%20")]
+    [InlineData("?sort=newest")]
+    public async Task GetListings_ShouldTreatMissingBlankOrUnsupportedSortAsIdOrder(string querySuffix)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 3, isPublished: true, make: "Toyota", model: "Corolla", year: 2024),
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3", year: 2022),
+            CreateListing(id: 2, isPublished: true, make: "BMW", model: "X5", year: 2023),
+            CreateListing(id: 4, isPublished: false, make: "Ford", model: "Mustang", year: 2025)
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync($"/api/listings{querySuffix}", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Equal([1, 2, 3], listings.Select(listing => listing.Id));
+    }
+
+    [Fact]
+    public async Task GetListings_ShouldComposeMakeFilterAndSortWithYearTieBreaker()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 10, isPublished: true, make: "Tesla", model: "Model 3", year: 2024),
+            CreateListing(id: 11, isPublished: true, make: "TESLA", model: "Model Y", year: 2022),
+            CreateListing(id: 12, isPublished: true, make: "Tesla", model: "Model S", year: 2024),
+            CreateListing(id: 13, isPublished: true, make: "Tesla", model: "Model X", year: 2023),
+            CreateListing(id: 14, isPublished: true, make: "BMW", model: "X5", year: 2025),
+            CreateListing(id: 15, isPublished: false, make: "Tesla", model: "Roadster", year: 2026)
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings?make=tesla&sort=year-desc", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Equal([10, 12, 13, 11], listings.Select(listing => listing.Id));
+        Assert.All(listings, listing => Assert.Contains(listing.Make, new[] { "Tesla", "TESLA" }));
+    }
+
+    [Fact]
     public async Task GetListings_ShouldReturnPublishedListingsInIdOrderWithExpectedValues()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

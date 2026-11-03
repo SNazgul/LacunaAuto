@@ -30,6 +30,31 @@ test.describe("Home screen", () => {
     expect(normalizeSpaces(await page.locator(".badge-new").first().innerText()).toLowerCase()).toBe("just added");
   });
 
+  test("home requests listings without make or sort parameters", async ({ page }) => {
+    const requests: string[] = [];
+    await page.route("**/api/listings*", async route => {
+      requests.push(route.request().url());
+      await route.fulfill({
+        json: [
+          {
+            id: 1, make: "Tesla", model: "Model 3", trimOrVariant: "Long Range",
+            year: 2023, price: 45000, originalCurrencyCode: "USD", mileage: 12000,
+            fuelType: "Electric", transmission: "Automatic", location: "Kyiv, Ukraine",
+            imageUrl: "/images/vehicles/tesla-model-3.svg", isNew: true,
+          },
+        ],
+      });
+    });
+
+    await gotoApp(page, "/", ".home-page");
+    await ensurePreferences(page, DEFAULT_PREFERENCES, ".home-page");
+
+    expect(requests.length).toBeGreaterThan(0);
+    const firstRequest = new URL(requests[0]);
+    expect(firstRequest.searchParams.get("make")).toBeNull();
+    expect(firstRequest.searchParams.get("sort")).toBeNull();
+  });
+
   test("first card click opens matching details", async ({ page }) => {
     await gotoApp(page, "/", ".home-page");
     await ensurePreferences(page, DEFAULT_PREFERENCES, ".home-page");

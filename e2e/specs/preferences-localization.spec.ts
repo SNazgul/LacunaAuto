@@ -48,7 +48,8 @@ test.describe("Localization and persisted preferences", () => {
 
     await page.goto(absoluteUrl("/listings"));
     await page.waitForSelector(".listings-page", { timeout: 30_000 });
-    expect(normalizeSpaces(await page.locator(".sort-label").innerText())).toBe("Найновіші");
+    await expect(page.getByRole("combobox", { name: "Сортування за роком моделі" })).toBeVisible();
+    expect(normalizeSpaces(await page.locator("#listings-sort-filter option:checked").innerText())).toBe("Порядок за замовчуванням");
     expect(normalizeSpaces(await page.locator(".result-count").innerText())).toBe("8 результатів");
 
     // The 404 page is localized too.
@@ -65,6 +66,90 @@ test.describe("Localization and persisted preferences", () => {
 
     await gotoApp(page, "/definitely-not-a-page", ".not-found-page");
     expect(normalizeSpaces(await page.locator(".not-found-page h1").innerText())).toBe("Не найдено");
+  });
+
+  test("uk 390px sort selector shows distinct year directions and keeps controls in viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoApp(page, "/listings", ".listings-page");
+    await seedPreferences(page, UKRAINE_PREFS, ".listings-page");
+
+    const sortFilter = page.getByRole("combobox", { name: "Сортування за роком моделі" });
+    const makeFilter = page.locator("#listings-make-filter");
+    const viewport = page.viewportSize();
+    expect(viewport).not.toBeNull();
+
+    const assertControlsWithinViewport = async () => {
+      const sortBounds = await sortFilter.boundingBox();
+      const makeBounds = await makeFilter.boundingBox();
+      expect(sortBounds).not.toBeNull();
+      expect(makeBounds).not.toBeNull();
+      expect(sortBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(sortBounds!.x + sortBounds!.width).toBeLessThanOrEqual(viewport!.width);
+      expect(makeBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(makeBounds!.x + makeBounds!.width).toBeLessThanOrEqual(viewport!.width);
+      expect(
+        sortBounds!.x + sortBounds!.width <= makeBounds!.x
+          || makeBounds!.x + makeBounds!.width <= sortBounds!.x
+          || sortBounds!.y + sortBounds!.height <= makeBounds!.y
+          || makeBounds!.y + makeBounds!.height <= sortBounds!.y
+      ).toBe(true);
+    };
+
+    await expect(sortFilter.locator("option")).toHaveText([
+      "Порядок за замовчуванням",
+      "Новіші спочатку",
+      "Старіші спочатку",
+    ]);
+
+    await sortFilter.selectOption("year-desc");
+    await expect(sortFilter.locator("option:checked")).toHaveText("Новіші спочатку");
+    await assertControlsWithinViewport();
+
+    await sortFilter.selectOption("year-asc");
+    await expect(sortFilter.locator("option:checked")).toHaveText("Старіші спочатку");
+    await assertControlsWithinViewport();
+  });
+
+  test("ru 390px sort selector shows distinct year directions and keeps controls in viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoApp(page, "/listings", ".listings-page");
+    await seedPreferences(page, RUSSIA_PREFS, ".listings-page");
+
+    const sortFilter = page.getByRole("combobox", { name: "Сортировка по году модели" });
+    const makeFilter = page.locator("#listings-make-filter");
+    const viewport = page.viewportSize();
+    expect(viewport).not.toBeNull();
+
+    const assertControlsWithinViewport = async () => {
+      const sortBounds = await sortFilter.boundingBox();
+      const makeBounds = await makeFilter.boundingBox();
+      expect(sortBounds).not.toBeNull();
+      expect(makeBounds).not.toBeNull();
+      expect(sortBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(sortBounds!.x + sortBounds!.width).toBeLessThanOrEqual(viewport!.width);
+      expect(makeBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(makeBounds!.x + makeBounds!.width).toBeLessThanOrEqual(viewport!.width);
+      expect(
+        sortBounds!.x + sortBounds!.width <= makeBounds!.x
+          || makeBounds!.x + makeBounds!.width <= sortBounds!.x
+          || sortBounds!.y + sortBounds!.height <= makeBounds!.y
+          || makeBounds!.y + makeBounds!.height <= sortBounds!.y
+      ).toBe(true);
+    };
+
+    await expect(sortFilter.locator("option")).toHaveText([
+      "Порядок по умолчанию",
+      "Новые сначала",
+      "Старые сначала",
+    ]);
+
+    await sortFilter.selectOption("year-desc");
+    await expect(sortFilter.locator("option:checked")).toHaveText("Новые сначала");
+    await assertControlsWithinViewport();
+
+    await sortFilter.selectOption("year-asc");
+    await expect(sortFilter.locator("option:checked")).toHaveText("Старые сначала");
+    await assertControlsWithinViewport();
   });
 
   test("uk regional format changes separators but not currency", async ({ page }) => {

@@ -61,6 +61,54 @@ public sealed class ListingsClientTests
         Assert.Equal("Tesla", listing.Make);
     }
 
+    [Fact]
+    public async Task GetListings_ShouldAppendSortQueryWhenSupported()
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings", request.RequestUri!.AbsolutePath);
+            Assert.Equal("?sort=year-desc", request.RequestUri.Query);
+            return JsonResponse($"[{_cardJson}]");
+        });
+        var service = new ListingsClient(http);
+
+        var listing = Assert.Single(await service.GetListingsAsync(null, "year-desc", TestContext.Current.CancellationToken));
+        Assert.Equal(8, listing.Id);
+    }
+
+    [Fact]
+    public async Task GetListings_ShouldAppendMakeAndSortQueriesWhenBothProvided()
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings", request.RequestUri!.AbsolutePath);
+            Assert.Equal("?make=Auto%25_%20Group&sort=year-asc", request.RequestUri.Query);
+            return JsonResponse($"[{_cardJson}]");
+        });
+        var service = new ListingsClient(http);
+
+        var listing = Assert.Single(await service.GetListingsAsync("Auto%_ Group", "year-asc", TestContext.Current.CancellationToken));
+        Assert.Equal(8, listing.Id);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("newest")]
+    public async Task GetListings_ShouldOmitSortQueryWhenValueIsBlankOrUnsupported(string sort)
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings", request.RequestUri!.AbsolutePath);
+            Assert.Equal(string.Empty, request.RequestUri.Query);
+            return JsonResponse($"[{_cardJson}]");
+        });
+        var service = new ListingsClient(http);
+
+        var listing = Assert.Single(await service.GetListingsAsync(null, sort, TestContext.Current.CancellationToken));
+        Assert.Equal(8, listing.Id);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
