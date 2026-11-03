@@ -19,14 +19,21 @@
             <span class="result-count">@(_isLoading ? Localizer["Loading"] : _hasError ? Localizer["ErrorLoadingContent"] : $"{_listings.Count} {Localizer["Results"]}")</span>
             <span class="sort-label">@Localizer["Newest"]</span>
         </div>
-        <button class="filter-button" type="button" aria-label="@Localizer["Filter"]" disabled>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7h16M7 12h10M10 17h4" />
-                <circle cx="8" cy="7" r="1.5" />
-                <circle cx="16" cy="12" r="1.5" />
-                <circle cx="12" cy="17" r="1.5" />
-            </svg>
-        </button>
+        <div class="make-filter">
+            <label class="visually-hidden" for="listings-make-filter">@Localizer["Make"]</label>
+            <select id="listings-make-filter"
+                    class="make-filter-select"
+                    aria-label="@Localizer["Make"]"
+                    value="@_selectedMake"
+                    @onchange="OnMakeSelectionChanged"
+                    disabled="@_isLoading">
+                <option value="">@Localizer["AllMakes"]</option>
+                @foreach (var make in _availableMakes)
+                {
+                    <option value="@make">@make</option>
+                }
+            </select>
+        </div>
     </header>
 
     <div class="listings-content">
@@ -55,36 +62,69 @@
 @code {
     private IReadOnlyList<VehicleListingCardModel> _listings = Array.Empty<VehicleListingCardModel>();
 
+    private readonly List<string> _availableMakes = [];
     private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _activeRequest;
     private bool _isLoading = true;
     private bool _hasError;
+    private string _selectedMake = string.Empty;
+    private int _loadVersion;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync()
     {
+        var request = StartNewRequest();
+        var requestVersion = ++_loadVersion;
+
         _isLoading = true;
         _hasError = false;
         _listings = Array.Empty<VehicleListingCardModel>();
         try
         {
-            _listings = await BrowsingApi.GetListingsAsync(_lifetime.Token);
+            var selectedMake = SelectedMakeOrNull();
+            var listings = await BrowsingApi.GetListingsAsync(selectedMake, request.Token);
+            if (!IsCurrentRequest(requestVersion, request))
+            {
+                return;
+            }
+
+            _listings = listings;
+            if (_availableMakes.Count == 0 && selectedMake is null)
+            {
+                _availableMakes.AddRange(CreateMakeOptions(listings));
+            }
         }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        catch (OperationCanceledException) when (request.IsCancellationRequested || _lifetime.IsCancellationRequested)
         {
         }
         catch (Exception exception) when (exception is HttpRequestException or System.Text.Json.JsonException or OperationCanceledException)
         {
-            _hasError = true;
+            if (IsCurrentRequest(requestVersion, request))
+            {
+                _hasError = true;
+            }
         }
         finally
         {
-            _isLoading = false;
+            if (IsCurrentRequest(requestVersion, request))
+            {
+                _isLoading = false;
+            }
+
+            if (ReferenceEquals(_activeRequest, request))
+            {
+                _activeRequest = null;
+            }
+
+            request.Dispose();
         }
     }
 
     public void Dispose()
     {
+        _activeRequest?.Cancel();
+        _activeRequest?.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
     }
@@ -98,7 +138,46 @@
     {
         Navigation.NavigateTo($"/listings/{id}");
     }
+
+    private async Task OnMakeSelectionChanged(ChangeEventArgs args)
+    {
+        _selectedMake = args.Value?.ToString() ?? string.Empty;
+        await LoadAsync();
+    }
+
+    private CancellationTokenSource StartNewRequest()
+    {
+        _activeRequest?.Cancel();
+        _activeRequest = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        return _activeRequest;
+    }
+
+    private bool IsCurrentRequest(int requestVersion, CancellationTokenSource request)
+    {
+        return requestVersion == _loadVersion &&
+            ReferenceEquals(_activeRequest, request) &&
+            !request.IsCancellationRequested;
+    }
+
+    private string? SelectedMakeOrNull()
+    {
+        return string.IsNullOrWhiteSpace(_selectedMake) ? null : _selectedMake.Trim();
+    }
+
+    private static List<string> CreateMakeOptions(IReadOnlyList<VehicleListingCardModel> listings)
+    {
+        var seenMakes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var makes = new List<string>();
+        foreach (var listing in listings)
+        {
+            if (seenMakes.Add(listing.Make))
+            {
+                makes.Add(listing.Make);
+            }
+        }
+
+        makes.Sort(StringComparer.OrdinalIgnoreCase);
+        return makes;
+    }
 }
-
-
 

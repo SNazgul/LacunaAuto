@@ -12,11 +12,20 @@ public static class PublicListingsEndpoints
     {
         endpoints.MapGet(
                 "/api/listings",
-                async (LacunaAutoDbContext dbContext, CancellationToken cancellationToken) =>
+                async (string? make, LacunaAutoDbContext dbContext, CancellationToken cancellationToken) =>
                 {
-                    var publishedListings = await dbContext.Listings
+                    var normalizedMake = string.IsNullOrWhiteSpace(make) ? null : make.Trim();
+
+                    var publishedListingsQuery = dbContext.Listings
                         .AsNoTracking()
-                        .Where(listing => listing.IsPublished)
+                        .Where(listing => listing.IsPublished);
+
+                    if (normalizedMake is not null)
+                    {
+                        publishedListingsQuery = ApplyMakeFilter(publishedListingsQuery, dbContext, normalizedMake);
+                    }
+
+                    var publishedListings = await publishedListingsQuery
                         .OrderBy(listing => listing.Id)
                         .Select(
                             listing =>
@@ -64,7 +73,7 @@ public static class PublicListingsEndpoints
             .AllowAnonymous()
             .WithName("GetListings")
             .WithSummary("Gets published listings for public browsing.")
-            .WithDescription("Returns listing card data for published listings ordered by listing ID.")
+            .WithDescription("Returns listing card data for published listings ordered by listing ID. Optional `make` applies an exact case-insensitive match.")
             .Produces<List<PublicListingCardDto>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
@@ -117,6 +126,28 @@ public static class PublicListingsEndpoints
             ImageUrl = listing.ImageUrl,
             IsNew = listing.IsNew
         });
+    }
+
+    private static IQueryable<VehicleListing> ApplyMakeFilter(
+        IQueryable<VehicleListing> listings,
+        LacunaAutoDbContext dbContext,
+        string make)
+    {
+        if (dbContext.Database.IsNpgsql())
+        {
+            var escapedMake = EscapeLikePattern(make);
+            return listings.Where(listing => EF.Functions.ILike(listing.Make, escapedMake, "\\"));
+        }
+
+        return listings.Where(listing => string.Equals(listing.Make, make, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private static string EscapeLikePattern(string value)
+    {
+        return value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
     }
 
     private sealed class PublicListingProjection

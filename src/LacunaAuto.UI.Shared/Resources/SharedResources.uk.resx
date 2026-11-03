@@ -112,6 +112,12 @@
   <data name="Filter" xml:space="preserve">
     <value>Фільтр</value>
   </data>
+  <data name="Make" xml:space="preserve">
+    <value>Марка</value>
+  </data>
+  <data name="AllMakes" xml:space="preserve">
+    <value>Усі марки</value>
+  </data>
   <data name="Sell" xml:space="preserve">
     <value>Продати</value>
   </data>
