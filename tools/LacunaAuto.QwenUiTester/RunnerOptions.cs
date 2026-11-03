@@ -9,6 +9,7 @@ internal sealed record RunnerOptions(
     string ApiBaseUrl,
     bool ApiRequired,
     bool BackendRelevant,
+    bool UiRelevant,
     string PostgresBootstrapStatus,
     string ChatCompletionsUrl,
     string Model,
@@ -21,6 +22,7 @@ internal sealed record RunnerOptions(
     bool ReuseRunningApp,
     bool ReuseRunningApi,
     bool StrataSmoke,
+    bool StrataVisionSmoke,
     bool RegressionOnly)
 {
     private const string DefaultWebBaseUrl = "http://127.0.0.1:5132/";
@@ -42,7 +44,7 @@ internal sealed record RunnerOptions(
             var name = argument[2..];
             if (name is "skip-regression" or "allow-dirty" or "reuse-running-app" or
                 "reuse-running-api" or "strata-smoke" or "regression-only" or
-                "api-required" or "api-optional" or "backend-relevant")
+                "api-required" or "api-optional" or "backend-relevant" or "ui-relevant" or "strata-vision-smoke")
             {
                 flags.Add(name);
                 continue;
@@ -62,13 +64,18 @@ internal sealed record RunnerOptions(
             Get(values, "max-tool-turns", Environment.GetEnvironmentVariable("QWEN_UI_MAX_TOOL_TURNS") ?? "16"),
             "max-tool-turns");
 
-        var chatCompletionsUrl = GetRequired(
+        var uiRelevant = flags.Contains("ui-relevant") || ParseBoolean(
+            Get(values, "ui-relevant", Environment.GetEnvironmentVariable("QWEN_UI_RELEVANT") ?? "false"),
+            "ui-relevant");
+        var visionSmoke = flags.Contains("strata-vision-smoke");
+        var chatCompletionsUrl = Get(
             values,
             "strata-url",
-            Environment.GetEnvironmentVariable("STRATA_CHAT_COMPLETIONS_URL"));
+            Environment.GetEnvironmentVariable("STRATA_CHAT_COMPLETIONS_URL") ?? string.Empty);
 
-        if (!Uri.TryCreate(chatCompletionsUrl, UriKind.Absolute, out var endpointUri) ||
-            endpointUri.Scheme is not ("http" or "https"))
+        if (!(string.IsNullOrWhiteSpace(chatCompletionsUrl) && (uiRelevant || visionSmoke)) &&
+            (!Uri.TryCreate(chatCompletionsUrl, UriKind.Absolute, out var endpointUri) ||
+             endpointUri.Scheme is not ("http" or "https")))
         {
             throw new ArgumentException(
                 "--strata-url / STRATA_CHAT_COMPLETIONS_URL must be an absolute HTTP(S) URL to the full chat-completions endpoint.");
@@ -111,6 +118,7 @@ internal sealed record RunnerOptions(
             ApiBaseUrl: EnsureTrailingSlash(Get(values, "api-base-url", Environment.GetEnvironmentVariable("QWEN_API_BASE_URL") ?? DefaultApiBaseUrl)),
             ApiRequired: apiRequired,
             BackendRelevant: backendRelevant,
+            UiRelevant: uiRelevant,
             PostgresBootstrapStatus: Get(
                 values,
                 "postgres-bootstrap-status",
@@ -126,6 +134,7 @@ internal sealed record RunnerOptions(
             ReuseRunningApp: flags.Contains("reuse-running-app"),
             ReuseRunningApi: flags.Contains("reuse-running-api"),
             StrataSmoke: flags.Contains("strata-smoke"),
+            StrataVisionSmoke: visionSmoke,
             RegressionOnly: flags.Contains("regression-only"));
     }
 
@@ -135,21 +144,6 @@ internal sealed record RunnerOptions(
         string fallback)
     {
         return values.TryGetValue(name, out var value) ? value : fallback;
-    }
-
-    private static string GetRequired(
-        IReadOnlyDictionary<string, string> values,
-        string name,
-        string? fallback)
-    {
-        if (values.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value))
-            return value;
-
-        if (!string.IsNullOrWhiteSpace(fallback))
-            return fallback;
-
-        throw new ArgumentException(
-            $"Missing --{name}. Supply the full STRATA chat-completions endpoint via --{name} or STRATA_CHAT_COMPLETIONS_URL.");
     }
 
     private static int ParsePositiveInt(string value, string name)

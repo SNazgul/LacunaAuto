@@ -17,6 +17,7 @@ internal sealed class ToolRegistry
     private readonly bool _apiRuntimeAvailable;
     private readonly string _e2eDirectory;
     private readonly string _fullRegressionReportPath;
+    private readonly VisualReview? _visualReview;
     private readonly HashSet<string> _focusedPlaywrightRuns = new(StringComparer.Ordinal);
     private int _focusedPlaywrightRunCount;
 
@@ -27,7 +28,8 @@ internal sealed class ToolRegistry
         string webBaseUrl,
         string apiBaseUrl,
         bool apiRuntimeAvailable,
-        string fullRegressionReportPath)
+        string fullRegressionReportPath,
+        VisualReview? visualReview = null)
     {
         _repositoryRoot = repositoryRoot;
         _baseRef = baseRef;
@@ -37,11 +39,12 @@ internal sealed class ToolRegistry
         _apiRuntimeAvailable = apiRuntimeAvailable;
         _e2eDirectory = Path.Combine(repositoryRoot, "e2e");
         _fullRegressionReportPath = fullRegressionReportPath;
+        _visualReview = visualReview;
     }
 
     public JsonArray GetDefinitions()
     {
-        return
+        JsonArray definitions =
         [
             Function(
                 "read_file",
@@ -153,16 +156,33 @@ internal sealed class ToolRegistry
                     ["additionalProperties"] = false,
                 }),
         ];
+
+        if (_visualReview is not null)
+        {
+            definitions.Add(Function(
+                "inspect_layout",
+                "Measure Web layout at a fixed viewport. Use CSS selectors for relevant elements.",
+                VisualReview.ToolParameters(screenshot: false)));
+            definitions.Add(Function(
+                "capture_screenshot",
+                "Capture a viewport PNG of the ready Web page. Pixels arrive in the next user message.",
+                VisualReview.ToolParameters(screenshot: true)));
+        }
+
+        return definitions;
     }
 
-    public async Task<string> ExecuteAsync(string name, string arguments)
+    public async Task<ToolExecutionResult> ExecuteAsync(string name, string arguments)
     {
         try
         {
             using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(arguments) ? "{}" : arguments);
             var root = document.RootElement;
 
-            return name switch
+            if (_visualReview is not null && name is ("inspect_layout" or "capture_screenshot"))
+                return await _visualReview.ProbeAsync(name == "capture_screenshot", root);
+
+            var text = name switch
             {
                 "read_file" => await ReadFileAsync(GetRequiredString(root, "path")),
                 "search_text" => await SearchTextAsync(
@@ -178,12 +198,15 @@ internal sealed class ToolRegistry
                     GetRequiredString(root, "route")),
                 _ => $"TOOL_ERROR: Unknown tool '{name}'.",
             };
+            return new ToolExecutionResult(text);
         }
         catch (Exception exception)
         {
-            return $"TOOL_ERROR: {exception.GetType().Name}: {exception.Message}";
+            return new ToolExecutionResult($"TOOL_ERROR: {exception.GetType().Name}: {exception.Message}");
         }
     }
+
+    public void MarkDelivered(VisualCapture capture) => _visualReview?.MarkDelivered(capture);
 
     private async Task<string> ReadFileAsync(string relativePath)
     {
@@ -349,7 +372,8 @@ internal sealed class ToolRegistry
 
     private async Task<string> HttpGetAsync(string target, string route)
     {
-        if (Uri.TryCreate(route, UriKind.Absolute, out _))
+        if (Uri.TryCreate(route, UriKind.Absolute, out _) || route.StartsWith("//", StringComparison.Ordinal) ||
+            route.Contains('\\') || route.Any(char.IsControl))
             throw new ArgumentException("route must be relative to the configured application origin.");
 
         var normalizedRoute = route.StartsWith("/", StringComparison.Ordinal)
@@ -374,8 +398,10 @@ internal sealed class ToolRegistry
         };
 
         var targetUri = new Uri(baseUri, routeWithoutLeadingSlash);
+        if (targetUri.Scheme != baseUri.Scheme || targetUri.IdnHost != baseUri.IdnHost || targetUri.Port != baseUri.Port)
+            throw new ArgumentException("route must stay within the configured application origin.");
 
-        using var client = new HttpClient
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
         {
             Timeout = TimeSpan.FromSeconds(20),
         };

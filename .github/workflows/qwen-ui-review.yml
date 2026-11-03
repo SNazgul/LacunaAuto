@@ -24,7 +24,7 @@ jobs:
   prepare:
     name: Authorize and resolve PR
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
       (
         github.event_name == 'pull_request' &&
         github.event.pull_request.author_association == 'OWNER' &&
@@ -47,6 +47,7 @@ jobs:
       base_sha: ${{ steps.pr.outputs.base_sha }}
       base_ref: ${{ steps.pr.outputs.base_ref }}
       backend_relevant: ${{ steps.pr.outputs.backend_relevant }}
+      ui_relevant: ${{ steps.pr.outputs.ui_relevant }}
       scope: ${{ steps.pr.outputs.scope }}
       acceptance: ${{ steps.pr.outputs.acceptance }}
     steps:
@@ -130,6 +131,10 @@ jobs:
                 pull_number: prNumber,
                 per_page: 100
               });
+            if (files.length !== pr.changed_files) {
+              core.setFailed('The full changed-file list is required for review classification.');
+              return;
+            }
 
             const backendPrefixes = [
               'src/LacunaAuto.Api/',
@@ -146,12 +151,28 @@ jobs:
               backendPrefixes.some(prefix => file.filename.startsWith(prefix)) ||
               backendExactFiles.includes(file.filename));
 
+            const uiPrefixes = ['src/LacunaAuto.Web/', 'src/LacunaAuto.Web.Client/', 'src/LacunaAuto.UI.Shared/'];
+            const uiRelevant = files.some(file =>
+              [file.filename, file.previous_filename].some(name =>
+                name && uiPrefixes.some(prefix => name.startsWith(prefix))));
+
+            const { data: confirmedPr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            if (confirmedPr.head.sha !== pr.head.sha || confirmedPr.base.sha !== pr.base.sha) {
+              core.setFailed('PR revisions changed during diff classification. Review the new SHA.');
+              return;
+            }
+
             core.setOutput('pr_number', String(prNumber));
             core.setOutput('head_sha', pr.head.sha);
             core.setOutput('head_branch', pr.head.ref);
             core.setOutput('base_sha', pr.base.sha);
             core.setOutput('base_ref', pr.base.ref);
             core.setOutput('backend_relevant', backendRelevant ? 'true' : 'false');
+            core.setOutput('ui_relevant', uiRelevant ? 'true' : 'false');
             core.setOutput('scope', scope);
             core.setOutput('acceptance', acceptance);
 
@@ -207,6 +228,14 @@ jobs:
         shell: pwsh
         run: dotnet test --project test\LacunaAuto.UI.Shared.Tests\LacunaAuto.UI.Shared.Tests.csproj
 
+      - name: Test responsive review tools
+        shell: pwsh
+        run: |
+          dotnet test --project test\LacunaAuto.QwenUiTester.Tests\LacunaAuto.QwenUiTester.Tests.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test e2e/tools/qwen-browser-probe.test.mjs
+          exit $LASTEXITCODE
+
       - name: Run Strata Qwen UI review
         id: qwen
         continue-on-error: true
@@ -219,6 +248,7 @@ jobs:
           QWEN_BASE_SHA: ${{ needs.prepare.outputs.base_sha }}
           QWEN_HEAD_SHA: ${{ needs.prepare.outputs.head_sha }}
           QWEN_BACKEND_RELEVANT: ${{ needs.prepare.outputs.backend_relevant }}
+          QWEN_UI_RELEVANT: ${{ needs.prepare.outputs.ui_relevant }}
           QWEN_API_BASE_URL: http://127.0.0.1:5133/
           QWEN_API_REQUIRED: "true"
           QWEN_POSTGRES_BOOTSTRAP_STATUS: ${{ steps.postgres.outcome }}
@@ -227,7 +257,22 @@ jobs:
           $reviewDirectory = "e2e\qwen-reviews"
           New-Item -ItemType Directory -Force -Path $reviewDirectory | Out-Null
 
-          if ($env:QWEN_POSTGRES_BOOTSTRAP_STATUS -ne "success") {
+          $uiRelevant = $env:QWEN_UI_RELEVANT -eq "true"
+          $bootstrapFailed = $env:QWEN_POSTGRES_BOOTSTRAP_STATUS -ne "success"
+          $visionStatus = if ($uiRelevant) { "not_run" } else { "not_required" }
+          $blocker = if ($bootstrapFailed) {
+            "Required PostgreSQL runtime/bootstrap was unavailable."
+          }
+          elseif ($uiRelevant -and [string]::IsNullOrWhiteSpace($env:STRATA_CHAT_COMPLETIONS_URL)) {
+            $visionStatus = "endpoint_unavailable"
+            "Repository variable STRATA_CHAT_COMPLETIONS_URL is not configured."
+          }
+          elseif ($uiRelevant -and [string]::IsNullOrWhiteSpace($env:STRATA_API_KEY)) {
+            $visionStatus = "model_error"
+            "Repository secret STRATA_API_KEY is not configured."
+          }
+
+          if ($blocker) {
             $generatedUtc = [DateTimeOffset]::UtcNow.ToString("O")
             $reviewPath = Join-Path $reviewDirectory "qwen-ui-review.md"
             $metadataPath = Join-Path $reviewDirectory "qwen-ui-review.json"
@@ -239,25 +284,26 @@ jobs:
               "- Tested SHA: `"$env:QWEN_HEAD_SHA`"",
               "- Base SHA: `"$env:QWEN_BASE_SHA`"",
               "- PostgreSQL bootstrap status: `"$env:QWEN_POSTGRES_BOOTSTRAP_STATUS`"",
+              "- UI-relevant diff: $uiRelevant",
+              "- Vision status: $visionStatus",
               "- Generated UTC: `"$generatedUtc`"",
               "",
               "Result: BLOCKED",
               "",
               "## Regression",
-              "- Required PostgreSQL runtime/bootstrap was unavailable.",
-              "- Authoritative PostgreSQL + API + Web topology could not be established.",
+              "- Review prerequisites failed before regression.",
               "",
               "## Verified",
               "- Workflow bootstrap step `Bootstrap PostgreSQL service (Windows)` outcome: `"$env:QWEN_POSTGRES_BOOTSTRAP_STATUS`".",
               "",
               "## Findings",
-              "- Review blocked by infrastructure topology precondition failure before model review execution.",
+              "- $blocker",
               "",
               "## Not verified",
-              "- Runtime behavior requiring the PostgreSQL + API + Web topology.",
+              "- Runtime and model verification for this SHA.",
               "",
               "## Recommendation",
-              "- Restore PostgreSQL bootstrap/runtime availability and rerun this review on the same tested SHA."
+              "- Resolve the infrastructure blocker and rerun the review on the same tested SHA."
             ) -join [Environment]::NewLine
 
             [System.IO.File]::WriteAllText(
@@ -271,6 +317,14 @@ jobs:
               testedSha = $env:QWEN_HEAD_SHA
               baseSha = $env:QWEN_BASE_SHA
               postgresBootstrapStatus = $env:QWEN_POSTGRES_BOOTSTRAP_STATUS
+              uiRelevant = $uiRelevant
+              visionStatus = $visionStatus
+              visionAvailable = $false
+              screenshotCount = 0
+              screenshots = @()
+              layoutInspections = @()
+              visualEvidenceSatisfied = $false
+              visualBlocker = $blocker
               regressionSkipped = $true
               generatedAtUtc = $generatedUtc
               reviewPath = $reviewPath
@@ -318,17 +372,30 @@ jobs:
 
           & dotnet @arguments
           $runnerExit = $LASTEXITCODE
-          "exit_code=$runnerExit" >> $env:GITHUB_OUTPUT
 
           $metadataPath = "e2e\qwen-reviews\qwen-ui-review.json"
+          $result = "ERROR"
           if (Test-Path $metadataPath) {
             $metadata = Get-Content $metadataPath -Raw | ConvertFrom-Json
-            "model_result=$($metadata.result)" >> $env:GITHUB_OUTPUT
+            if ($metadata.testedSha -ne $env:QWEN_HEAD_SHA -or $metadata.baseSha -ne $env:QWEN_BASE_SHA) {
+              Write-Host "The review artifact does not match the locked revisions."
+              $runnerExit = 10
+            }
+            elseif ($metadata.result -eq "PASS" -and ($runnerExit -ne 0 -or
+                ($uiRelevant -and (!$metadata.uiRelevant -or !$metadata.visionAvailable -or !$metadata.visualEvidenceSatisfied)))) {
+              Write-Host "The runner reported PASS without the required exit code or visual evidence."
+              $runnerExit = 10
+            }
+            else {
+              $result = $metadata.result
+            }
           }
           else {
-            "model_result=ERROR" >> $env:GITHUB_OUTPUT
+            if ($runnerExit -eq 0) { $runnerExit = 10 }
           }
 
+          "exit_code=$runnerExit" >> $env:GITHUB_OUTPUT
+          "model_result=$result" >> $env:GITHUB_OUTPUT
           exit $runnerExit
 
       - name: Ensure publishable review artifact
@@ -418,7 +485,7 @@ jobs:
 
             const result = process.env.MODEL_RESULT || 'ERROR';
             const conclusion =
-              result === 'PASS' ? 'success' :
+              result === 'PASS' && process.env.RUNNER_EXIT === '0' && process.env.REVIEW_JOB_RESULT === 'success' ? 'success' :
               'failure';
 
             const runUrl =

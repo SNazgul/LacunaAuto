@@ -105,6 +105,19 @@ Final      : LACUNA_QWEN_SMOKE_OK
 
 This mode deliberately does not start the API app, Web app, or Playwright.
 
+For responsive review, use the separate Vision smoke with the same endpoint,
+credentials, and model.
+
+```powershell
+dotnet run --project tools/LacunaAuto.QwenUiTester -- --strata-vision-smoke
+```
+
+The smoke places two tiny PNGs after completed tool calls in the request history and
+checks that the model can read the digits drawn on both. It exits 0 for
+available Vision and 3 for an unavailable endpoint, an explicit Vision
+rejection, an unreadable image result, or a model/protocol error. The printed
+status distinguishes those cases.
+
 ## First full UI review run
 
 After the STRATA smoke test passes, run from anywhere inside a **clean**
@@ -114,6 +127,7 @@ checkout of the branch/revision being reviewed:
 dotnet run --project tools/LacunaAuto.QwenUiTester -- `
   --base main `
   --head HEAD `
+  --ui-relevant `
   --scope "Review the current browsing UI without changing application code." `
   --acceptance "Regression suite passes; changed UI behavior has evidence; report anything not covered."
 ```
@@ -143,6 +157,7 @@ CLI options:
 | `--api-required` | on by default unless `--api-optional` is set |
 | `--api-optional` | off |
 | `--backend-relevant` | off |
+| `--ui-relevant` | off locally; classified independently by the workflow |
 | `--postgres-bootstrap-status` | `unknown` |
 | `--strata-url` | required full Chat Completions endpoint URL |
 | `--model` | `qwen3.8-flash-next-coder-iq1_m` |
@@ -150,7 +165,8 @@ CLI options:
 | `--max-tokens` | `48000` |
 | `--max-tool-turns` | `16` |
 | `--strata-smoke` | off; test only STRATA auth/tool calling |
-| `--regression-only` | off; run Web + Playwright only, without STRATA |
+| `--strata-vision-smoke` | off; verify two image parts in tool-call history |
+| `--regression-only` | off; run required API/Web topology and Playwright without STRATA |
 | `--skip-regression` | off |
 | `--allow-dirty` | off |
 | `--reuse-running-app` | off |
@@ -163,6 +179,7 @@ E2E_BASE_URL
 QWEN_API_BASE_URL
 QWEN_API_REQUIRED
 QWEN_BACKEND_RELEVANT
+QWEN_UI_RELEVANT
 QWEN_POSTGRES_BOOTSTRAP_STATUS
 STRATA_CHAT_COMPLETIONS_URL
 STRATA_MODEL
@@ -208,6 +225,33 @@ The full regression report is copied before any focused rerun so a later
 targeted Playwright execution cannot overwrite the evidence from the initial
 full suite.
 
+## Responsive visual evidence
+
+GitHub classifies changes under `src/LacunaAuto.Web/`, `src/LacunaAuto.Web.Client/`,
+and `src/LacunaAuto.UI.Shared/` as UI-relevant. For a local UI diff, pass
+`--ui-relevant`. PostgreSQL, API, and Web are the normal review topology for both
+classifications. Only the UI path runs the Vision smoke and exposes these tools.
+
+- `inspect_layout(route, viewport, ready_selector?, selectors?)` returns viewport
+  and document dimensions, horizontal overflow, and geometry and computed styles
+  for up to eight CSS selectors and four rectangles per selector.
+- `capture_screenshot(route, viewport, ready_selector?)` saves a viewport-only PNG.
+  After all tool calls are answered, STRATA receives PNG pixels in a multimodal
+  user message with a label for each route and viewport.
+
+The fixed presets are `mobile` (390×844), `tablet` (768×1024), and `desktop`
+(1440×900). The initial route catalog is `/`, `/listings`, and `/listings/1`.
+Each probe waits for the route's rendered component, any supplied ready
+selector, and the end of the page's marked loading state. Browser requests
+are read-only and scoped to the configured Web origin.
+
+The runner allows nine attempts per tool, rejects a duplicate successful capture
+of the same route and viewport, and limits PNGs to 1 MiB each and 4 MiB per
+review. A UI `PASS` requires layout and delivered screenshot evidence at every
+preset on one affected route, verified Vision, a clean checkout, runner-started
+API and Web, and a passing full regression. Incomplete evidence and unavailable
+Vision produce `BLOCKED`. Verified product defects can still produce `FAIL`.
+
 ## Output
 
 Generated Qwen review files live under the ignored `e2e/qwen-reviews/` folder, which is deliberately separate from Playwright's cleaned `e2e/e2e-artifacts/` output directory:
@@ -217,6 +261,7 @@ qwen-full-regression-report.json
 qwen-focused-<timestamp>.json
 qwen-ui-review.md
 qwen-ui-review.json
+screenshots/<review-id>/<capture>-<viewport>.png
 ```
 
 If Qwen consumes the configured tool-turn budget without returning a final answer, the runner issues one final no-tools, low-reasoning request using the evidence already collected instead of failing the whole review.
@@ -235,6 +280,10 @@ Result: BLOCKED
 ```
 
 A normal regression failure cannot be promoted to PASS by the model.
+The JSON report records UI classification, Vision smoke status, captured and
+delivered screenshot pairs, layout pairs, and whether a relevant route met
+the three-preset requirement. Download the workflow artifact to inspect the
+PNG files alongside the reports.
 
 Process exit codes:
 
@@ -310,7 +359,7 @@ The first line must be exactly `/qwen-ui-review`. Everything after the first
 line becomes the acceptance criteria. If omitted, the generic evidence-backed
 criteria are used.
 
-A manual `workflow_dispatch` path is also available.
+A manual `workflow_dispatch` path is available to the repository owner.
 
 The workflow:
 
