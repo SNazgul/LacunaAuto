@@ -118,6 +118,12 @@
   <data name="AllMakes" xml:space="preserve">
     <value>Все марки</value>
   </data>
+  <data name="Model" xml:space="preserve">
+    <value>Модель</value>
+  </data>
+  <data name="AllModels" xml:space="preserve">
+    <value>Все модели</value>
+  </data>
   <data name="Sell" xml:space="preserve">
     <value>Продать</value>
   </data>
@@ -212,6 +218,9 @@
   </data>
   <data name="ErrorLoadingMakes" xml:space="preserve">
     <value>Не удалось загрузить марки</value>
+  </data>
+  <data name="ErrorLoadingModels" xml:space="preserve">
+    <value>Не удалось загрузить модели</value>
   </data>
   <data name="NotFound" xml:space="preserve">
     <value>Не найдено</value>

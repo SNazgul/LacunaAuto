@@ -38,6 +38,22 @@
             window.scrollTo({ top: Math.max(0, targetTop - headerHeight - 8), behavior: "auto" });
         };
 
+        window.lacunaListings.scrollListboxOptionIntoView = function (optionId)
+        {
+            if (typeof optionId !== "string" || optionId.length === 0)
+            {
+                return;
+            }
+
+            const option = document.getElementById(optionId);
+            if (!(option instanceof HTMLElement))
+            {
+                return;
+            }
+
+            option.scrollIntoView({ block: "nearest", inline: "nearest" });
+        };
+
         if ('serviceWorker' in navigator)
         {
             window.addEventListener('load', function ()

@@ -127,7 +127,34 @@ public sealed class ListingsClientTests
     }
 
     [Fact]
-    public async Task GetListingsPage_ShouldAppendPagingMakeAndSortQueries()
+    public async Task GetListingsPage_ShouldAppendPagingMakeModelAndSortQueries()
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings/page", request.RequestUri!.AbsolutePath);
+            Assert.Equal("?make=Auto%25_%20Group&model=Model%25_%203&sort=year-desc&page=2&pageSize=8", request.RequestUri.Query);
+            return JsonResponse($$"""
+                {
+                  "items": [{{_cardJson}}],
+                  "page": 2,
+                  "pageSize": 8,
+                  "totalCount": 9,
+                  "totalPages": 2
+                }
+                """);
+        });
+        var service = new ListingsClient(http);
+
+        var page = await service.GetListingsPageAsync("Auto%_ Group", "Model%_ 3", "year-desc", 2, 8, TestContext.Current.CancellationToken);
+        Assert.Equal(2, page.Page);
+        Assert.Equal(8, page.PageSize);
+        Assert.Equal(9, page.TotalCount);
+        Assert.Equal(2, page.TotalPages);
+        Assert.Equal(8, Assert.Single(page.Items).Id);
+    }
+
+    [Fact]
+    public async Task GetListingsPage_ShouldOmitBlankModelQuery()
     {
         using var http = CreateHttpClient(request =>
         {
@@ -145,11 +172,7 @@ public sealed class ListingsClientTests
         });
         var service = new ListingsClient(http);
 
-        var page = await service.GetListingsPageAsync("Auto%_ Group", "year-desc", 2, 8, TestContext.Current.CancellationToken);
-        Assert.Equal(2, page.Page);
-        Assert.Equal(8, page.PageSize);
-        Assert.Equal(9, page.TotalCount);
-        Assert.Equal(2, page.TotalPages);
+        var page = await service.GetListingsPageAsync("Auto%_ Group", "   ", "year-desc", 2, 8, TestContext.Current.CancellationToken);
         Assert.Equal(8, Assert.Single(page.Items).Id);
     }
 
@@ -167,6 +190,33 @@ public sealed class ListingsClientTests
         Assert.Equal(["BMW", "Tesla"], makes);
     }
 
+    [Fact]
+    public async Task GetListingModels_ShouldRequestMakeScopedRouteAndNormalizeDistinctValues()
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings/models", request.RequestUri!.AbsolutePath);
+            Assert.Equal("?make=Auto%25_%20Group", request.RequestUri.Query);
+            return JsonResponse("""["Model Y", "MODEL Y", "Model 3"]""");
+        });
+        var service = new ListingsClient(http);
+
+        var models = await service.GetListingModelsAsync("Auto%_ Group", TestContext.Current.CancellationToken);
+        Assert.Equal(["Model 3", "Model Y"], models);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task GetListingModels_ShouldRequireMake(string make)
+    {
+        using var http = CreateHttpClient(_ => JsonResponse("[]"));
+        var service = new ListingsClient(http);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.GetListingModelsAsync(make, TestContext.Current.CancellationToken));
+    }
+
     [Theory]
     [InlineData(0, 8)]
     [InlineData(1, 0)]
@@ -177,7 +227,7 @@ public sealed class ListingsClientTests
         var service = new ListingsClient(http);
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            service.GetListingsPageAsync(null, null, page, pageSize, TestContext.Current.CancellationToken));
+            service.GetListingsPageAsync(null, null, null, page, pageSize, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -185,7 +235,7 @@ public sealed class ListingsClientTests
     {
         using var http = CreateHttpClient(_ => JsonResponse("null"));
         await Assert.ThrowsAsync<JsonException>(() =>
-            new ListingsClient(http).GetListingsPageAsync(null, null, 1, 8, TestContext.Current.CancellationToken));
+            new ListingsClient(http).GetListingsPageAsync(null, null, null, 1, 8, TestContext.Current.CancellationToken));
     }
 
     [Fact]

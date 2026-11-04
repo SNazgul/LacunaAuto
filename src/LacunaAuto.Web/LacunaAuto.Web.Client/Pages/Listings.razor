@@ -1,5 +1,6 @@
 @page "/listings"
 @using LacunaAuto.UI.Shared.Components
+@using Microsoft.AspNetCore.Components.Web
 @implements IDisposable
 @inject ListingsClient BrowsingApi
 @using Microsoft.Extensions.Localization
@@ -35,28 +36,133 @@
             </div>
             <div class="make-filter">
                 <label class="visually-hidden" for="listings-make-filter">@Localizer["Make"]</label>
-                <select id="listings-make-filter"
-                        class="make-filter-select"
-                        aria-label="@Localizer["Make"]"
-                        value="@_selectedMake"
-                        @onchange="OnMakeSelectionChanged"
-                        disabled="@_isLoading">
-                    <option value="">@Localizer["AllMakes"]</option>
-                    @if (IsSelectedMakeMissingFromOptions())
+                <div class="searchable-filter">
+                    <input id="listings-make-filter"
+                           class="make-filter-input"
+                           type="text"
+                           role="combobox"
+                           aria-autocomplete="list"
+                           aria-haspopup="listbox"
+                           aria-controls="listings-make-options"
+                           aria-expanded="@ToAriaBoolean(_isMakeOptionsOpen)"
+                           aria-activedescendant="@ActiveMakeOptionId()"
+                           aria-label="@Localizer["Make"]"
+                           autocomplete="off"
+                           placeholder="@Localizer["AllMakes"]"
+                           value="@_makeQuery"
+                           @oninput="OnMakeQueryInput"
+                           @onfocus="OnMakeInputFocus"
+                           @onblur="OnMakeInputBlurAsync"
+                           @onkeydown="OnMakeInputKeyDownAsync"
+                           disabled="@(_isLoading || _hasMakeOptionsError)" />
+
+                    @if (_isMakeOptionsOpen)
                     {
-                        <option value="@_selectedMake">@_selectedMake</option>
+                        var makeOptions = GetVisibleMakeOptions();
+                        <ul id="listings-make-options" class="filter-options" role="listbox">
+                            @if (makeOptions.Count == 0)
+                            {
+                                <li class="filter-option-empty" role="option" aria-disabled="true">
+                                    @Localizer["NoResultsFound"]
+                                </li>
+                            }
+                            else
+                            {
+                                @for (var index = 0; index < makeOptions.Count; index++)
+                                {
+                                    var option = makeOptions[index];
+                                    <li id="@GetMakeOptionId(index)"
+                                        class="filter-option-item @(index == _highlightedMakeOptionIndex ? "is-active" : null)"
+                                        role="option"
+                                        aria-selected="@(index == _highlightedMakeOptionIndex ? "true" : "false")">
+                                        <button type="button"
+                                                class="filter-option-button"
+                                                tabindex="-1"
+                                                @onmousedown:preventDefault="true"
+                                                @onclick="() => SelectMakeOptionAsync(option)">
+                                            @option.Label
+                                        </button>
+                                    </li>
+                                }
+                            }
+                        </ul>
                     }
-                    @foreach (var make in _availableMakes)
-                    {
-                        <option value="@make">@make</option>
-                    }
-                </select>
+                </div>
             </div>
+            @if (HasSelectedMake())
+            {
+                <div class="model-filter">
+                    <label class="visually-hidden" for="listings-model-filter">@Localizer["Model"]</label>
+                    <div class="searchable-filter">
+                        <input id="listings-model-filter"
+                               class="model-filter-input"
+                               type="text"
+                               role="combobox"
+                               aria-autocomplete="list"
+                               aria-haspopup="listbox"
+                               aria-controls="listings-model-options"
+                               aria-expanded="@ToAriaBoolean(_isModelOptionsOpen)"
+                               aria-activedescendant="@ActiveModelOptionId()"
+                               aria-label="@Localizer["Model"]"
+                               autocomplete="off"
+                               placeholder="@Localizer["AllModels"]"
+                               value="@_modelQuery"
+                               @oninput="OnModelQueryInput"
+                               @onfocus="OnModelInputFocus"
+                               @onblur="OnModelInputBlurAsync"
+                               @onkeydown="OnModelInputKeyDownAsync"
+                               disabled="@(_isLoading || _isLoadingModels || _hasModelOptionsError)" />
+
+                        @if (_isModelOptionsOpen)
+                        {
+                            var modelOptions = GetVisibleModelOptions();
+                            <ul id="listings-model-options" class="filter-options" role="listbox">
+                                @if (modelOptions.Count == 0)
+                                {
+                                    <li class="filter-option-empty" role="option" aria-disabled="true">
+                                        @Localizer["NoResultsFound"]
+                                    </li>
+                                }
+                                else
+                                {
+                                    @for (var index = 0; index < modelOptions.Count; index++)
+                                    {
+                                        var option = modelOptions[index];
+                                        <li id="@GetModelOptionId(index)"
+                                            class="filter-option-item @(index == _highlightedModelOptionIndex ? "is-active" : null)"
+                                            role="option"
+                                            aria-selected="@(index == _highlightedModelOptionIndex ? "true" : "false")">
+                                            <button type="button"
+                                                    class="filter-option-button"
+                                                    tabindex="-1"
+                                                    @onmousedown:preventDefault="true"
+                                                    @onclick="() => SelectModelOptionAsync(option)">
+                                                @option.Label
+                                            </button>
+                                        </li>
+                                    }
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+            }
             @if (_hasMakeOptionsError)
             {
                 <div class="make-options-error" role="alert">
                     <span>@Localizer["ErrorLoadingMakes"]</span>
                     <button type="button" @onclick="LoadAsync" disabled="@_isLoading">@Localizer["TryAgain"]</button>
+                </div>
+            }
+            @if (HasSelectedMake() && _isLoadingModels)
+            {
+                <div class="model-options-status" role="status">@Localizer["Loading"]</div>
+            }
+            @if (HasSelectedMake() && _hasModelOptionsError)
+            {
+                <div class="model-options-error" role="alert">
+                    <span>@Localizer["ErrorLoadingModels"]</span>
+                    <button type="button" @onclick="RetryModelOptionsAsync" disabled="@_isLoadingModels">@Localizer["TryAgain"]</button>
                 </div>
             }
         </div>
@@ -114,23 +220,52 @@
     private const int _pageSize = 8;
 
     private readonly List<string> _availableMakes = [];
+    private readonly List<string> _availableModels = [];
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _activeRequest;
+    private CancellationTokenSource? _activeModelOptionsRequest;
     private bool _isLoading = true;
     private bool _hasError;
     private bool _hasMakeOptionsError;
+    private bool _hasModelOptionsError;
+    private bool _isLoadingModels;
     private string _selectedMake = string.Empty;
+    private string _selectedModel = string.Empty;
     private string _selectedSort = string.Empty;
+    private string _makeQuery = string.Empty;
+    private string _modelQuery = string.Empty;
+    private bool _isMakeOptionsOpen;
+    private bool _isModelOptionsOpen;
+    private int _highlightedMakeOptionIndex = -1;
+    private int _highlightedModelOptionIndex = -1;
     private int _currentPage = _defaultPage;
     private int _totalCount;
     private int _totalPages;
     private int _loadVersion;
+    private int _modelOptionsVersion;
     private bool _focusResultsOnNextRender;
+    private string? _pendingMakeOptionScrollId;
+    private string? _pendingModelOptionScrollId;
     private ElementReference _resultsHeading;
 
     protected override Task OnInitializedAsync() => LoadAsync();
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_pendingMakeOptionScrollId is not null)
+        {
+            var optionId = _pendingMakeOptionScrollId;
+            _pendingMakeOptionScrollId = null;
+            await JsRuntime.InvokeVoidAsync("lacunaListings.scrollListboxOptionIntoView", optionId);
+        }
+
+        if (_pendingModelOptionScrollId is not null)
+        {
+            var optionId = _pendingModelOptionScrollId;
+            _pendingModelOptionScrollId = null;
+            await JsRuntime.InvokeVoidAsync("lacunaListings.scrollListboxOptionIntoView", optionId);
+        }
+
         if (!_focusResultsOnNextRender || _isLoading || _hasError)
         {
             return;
@@ -161,9 +296,11 @@
         try
         {
             var selectedMake = SelectedMakeOrNull();
+            var selectedModel = SelectedModelOrNull();
             var selectedSort = SelectedSortOrNull();
             var listingsPage = await BrowsingApi.GetListingsPageAsync(
                 selectedMake,
+                selectedModel,
                 selectedSort,
                 _currentPage,
                 _pageSize,
@@ -249,10 +386,79 @@
         }
     }
 
+    private async Task LoadModelOptionsForSelectedMakeAsync()
+    {
+        var selectedMake = SelectedMakeOrNull();
+        if (selectedMake is null)
+        {
+            return;
+        }
+
+        var request = StartNewModelOptionsRequest();
+        var requestVersion = ++_modelOptionsVersion;
+        var shouldRefresh = false;
+        _isLoadingModels = true;
+        _hasModelOptionsError = false;
+        _availableModels.Clear();
+        shouldRefresh = true;
+
+        try
+        {
+            var models = await BrowsingApi.GetListingModelsAsync(selectedMake, request.Token);
+            if (!IsCurrentModelOptionsRequest(requestVersion, request, selectedMake))
+            {
+                return;
+            }
+
+            _availableModels.Clear();
+            _availableModels.AddRange(models);
+            _hasModelOptionsError = false;
+            shouldRefresh = true;
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested || _lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception) when (exception is HttpRequestException or System.Text.Json.JsonException or OperationCanceledException)
+        {
+            if (IsCurrentModelOptionsRequest(requestVersion, request, selectedMake))
+            {
+                _hasModelOptionsError = true;
+                shouldRefresh = true;
+            }
+        }
+        finally
+        {
+            if (IsCurrentModelOptionsRequest(requestVersion, request, selectedMake))
+            {
+                _isLoadingModels = false;
+                shouldRefresh = true;
+            }
+
+            if (ReferenceEquals(_activeModelOptionsRequest, request))
+            {
+                _activeModelOptionsRequest = null;
+            }
+
+            request.Dispose();
+        }
+
+        if (shouldRefresh)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task RetryModelOptionsAsync()
+    {
+        await LoadModelOptionsForSelectedMakeAsync();
+    }
+
     public void Dispose()
     {
         _activeRequest?.Cancel();
         _activeRequest?.Dispose();
+        _activeModelOptionsRequest?.Cancel();
+        _activeModelOptionsRequest?.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
     }
@@ -267,11 +473,177 @@
         Navigation.NavigateTo($"/listings/{id}");
     }
 
-    private async Task OnMakeSelectionChanged(ChangeEventArgs args)
+    private async Task SelectMakeOptionAsync(FilterOption option)
     {
-        _selectedMake = args.Value?.ToString() ?? string.Empty;
+        var nextMake = option.Value;
+        var makeChanged = !string.Equals(_selectedMake, nextMake, StringComparison.Ordinal);
+        _selectedMake = nextMake;
+        _makeQuery = nextMake;
+        CloseMakeOptions();
+
+        if (!makeChanged)
+        {
+            return;
+        }
+
+        _currentPage = _defaultPage;
+        ClearSelectedModelAndOptions();
+        if (HasSelectedMake())
+        {
+            _ = LoadModelOptionsForSelectedMakeAsync();
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task SelectModelOptionAsync(FilterOption option)
+    {
+        var nextModel = option.Value;
+        var modelChanged = !string.Equals(_selectedModel, nextModel, StringComparison.Ordinal);
+        _selectedModel = nextModel;
+        _modelQuery = nextModel;
+        CloseModelOptions();
+
+        if (!modelChanged)
+        {
+            return;
+        }
+
         _currentPage = _defaultPage;
         await LoadAsync();
+    }
+
+    private void OnMakeQueryInput(ChangeEventArgs args)
+    {
+        _makeQuery = args.Value?.ToString() ?? string.Empty;
+        _isMakeOptionsOpen = true;
+        SetMakeHighlightToFirstOption();
+    }
+
+    private async Task OnMakeInputBlurAsync(FocusEventArgs args)
+    {
+        await Task.Yield();
+        RestoreMakeQueryToApplied();
+        CloseMakeOptions();
+    }
+
+    private void OnMakeInputFocus(FocusEventArgs args)
+    {
+        _isMakeOptionsOpen = true;
+        SetMakeHighlightToSelectedOrFirst();
+    }
+
+    private async Task OnMakeInputKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "ArrowDown")
+        {
+            await MoveMakeHighlightAsync(1);
+            return;
+        }
+
+        if (args.Key == "ArrowUp")
+        {
+            await MoveMakeHighlightAsync(-1);
+            return;
+        }
+
+        if (args.Key == "Enter")
+        {
+            if (!_isMakeOptionsOpen)
+            {
+                return;
+            }
+
+            var options = GetVisibleMakeOptions();
+            if (_highlightedMakeOptionIndex >= 0 && _highlightedMakeOptionIndex < options.Count)
+            {
+                await SelectMakeOptionAsync(options[_highlightedMakeOptionIndex]);
+            }
+
+            return;
+        }
+
+        if (args.Key == "Escape")
+        {
+            RestoreMakeQueryToApplied();
+            CloseMakeOptions();
+            return;
+        }
+
+        if (args.Key == "Tab")
+        {
+            RestoreMakeQueryToApplied();
+            CloseMakeOptions();
+        }
+    }
+
+    private void OnModelQueryInput(ChangeEventArgs args)
+    {
+        _modelQuery = args.Value?.ToString() ?? string.Empty;
+        _isModelOptionsOpen = true;
+        SetModelHighlightToFirstOption();
+    }
+
+    private async Task OnModelInputBlurAsync(FocusEventArgs args)
+    {
+        await Task.Yield();
+        RestoreModelQueryToApplied();
+        CloseModelOptions();
+    }
+
+    private void OnModelInputFocus(FocusEventArgs args)
+    {
+        if (!HasSelectedMake())
+        {
+            return;
+        }
+
+        _isModelOptionsOpen = true;
+        SetModelHighlightToSelectedOrFirst();
+    }
+
+    private async Task OnModelInputKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "ArrowDown")
+        {
+            await MoveModelHighlightAsync(1);
+            return;
+        }
+
+        if (args.Key == "ArrowUp")
+        {
+            await MoveModelHighlightAsync(-1);
+            return;
+        }
+
+        if (args.Key == "Enter")
+        {
+            if (!_isModelOptionsOpen)
+            {
+                return;
+            }
+
+            var options = GetVisibleModelOptions();
+            if (_highlightedModelOptionIndex >= 0 && _highlightedModelOptionIndex < options.Count)
+            {
+                await SelectModelOptionAsync(options[_highlightedModelOptionIndex]);
+            }
+
+            return;
+        }
+
+        if (args.Key == "Escape")
+        {
+            RestoreModelQueryToApplied();
+            CloseModelOptions();
+            return;
+        }
+
+        if (args.Key == "Tab")
+        {
+            RestoreModelQueryToApplied();
+            CloseModelOptions();
+        }
     }
 
     private async Task OnSortSelectionChanged(ChangeEventArgs args)
@@ -310,6 +682,14 @@
         return _activeRequest;
     }
 
+    private CancellationTokenSource StartNewModelOptionsRequest()
+    {
+        _activeModelOptionsRequest?.Cancel();
+        _activeModelOptionsRequest?.Dispose();
+        _activeModelOptionsRequest = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        return _activeModelOptionsRequest;
+    }
+
     private bool IsCurrentRequest(int requestVersion, CancellationTokenSource request)
     {
         return requestVersion == _loadVersion &&
@@ -317,9 +697,22 @@
             !request.IsCancellationRequested;
     }
 
+    private bool IsCurrentModelOptionsRequest(int requestVersion, CancellationTokenSource request, string requestMake)
+    {
+        return requestVersion == _modelOptionsVersion &&
+            ReferenceEquals(_activeModelOptionsRequest, request) &&
+            !request.IsCancellationRequested &&
+            string.Equals(_selectedMake, requestMake, StringComparison.Ordinal);
+    }
+
     private string? SelectedMakeOrNull()
     {
         return string.IsNullOrWhiteSpace(_selectedMake) ? null : _selectedMake.Trim();
+    }
+
+    private string? SelectedModelOrNull()
+    {
+        return string.IsNullOrWhiteSpace(_selectedModel) ? null : _selectedModel.Trim();
     }
 
     private string? SelectedSortOrNull()
@@ -343,12 +736,6 @@
         return !_isLoading && _totalPages > 0 && _currentPage < _totalPages;
     }
 
-    private bool IsSelectedMakeMissingFromOptions()
-    {
-        return !string.IsNullOrWhiteSpace(_selectedMake) &&
-            !_availableMakes.Any(make => string.Equals(make, _selectedMake, StringComparison.OrdinalIgnoreCase));
-    }
-
     private string ResultCountText()
     {
         return _totalCount == 1 ? $"1 {Localizer["Result"]}" : $"{_totalCount} {Localizer["Results"]}";
@@ -360,4 +747,277 @@
         var visiblePage = _totalPages == 0 ? _defaultPage : Math.Min(_currentPage, visibleTotalPages);
         return Localizer["PageIndicator", visiblePage, visibleTotalPages];
     }
+
+    private string ToAriaBoolean(bool value)
+    {
+        return value ? "true" : "false";
+    }
+
+    private bool HasSelectedMake()
+    {
+        return !string.IsNullOrWhiteSpace(_selectedMake);
+    }
+
+    private void ClearSelectedModelAndOptions()
+    {
+        _selectedModel = string.Empty;
+        _modelQuery = string.Empty;
+        _availableModels.Clear();
+        _hasModelOptionsError = false;
+        _isLoadingModels = false;
+        CloseModelOptions();
+        _activeModelOptionsRequest?.Cancel();
+        _activeModelOptionsRequest?.Dispose();
+        _activeModelOptionsRequest = null;
+    }
+
+    private void RestoreMakeQueryToApplied()
+    {
+        _makeQuery = _selectedMake;
+    }
+
+    private void RestoreModelQueryToApplied()
+    {
+        _modelQuery = _selectedModel;
+    }
+
+    private void CloseMakeOptions()
+    {
+        _isMakeOptionsOpen = false;
+        _highlightedMakeOptionIndex = -1;
+        _pendingMakeOptionScrollId = null;
+    }
+
+    private void CloseModelOptions()
+    {
+        _isModelOptionsOpen = false;
+        _highlightedModelOptionIndex = -1;
+        _pendingModelOptionScrollId = null;
+    }
+
+    private List<FilterOption> GetVisibleMakeOptions()
+    {
+        var options = new List<FilterOption>(_availableMakes.Count + 1);
+        var query = _makeQuery.Trim();
+        var allMakesLabel = Localizer["AllMakes"].Value;
+        if (query.Length == 0 || allMakesLabel.Contains(query, StringComparison.OrdinalIgnoreCase))
+        {
+            options.Add(new FilterOption(allMakesLabel, string.Empty));
+        }
+
+        foreach (var make in GetDistinctSortedOptions(_availableMakes, _selectedMake))
+        {
+            if (query.Length == 0 || make.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                options.Add(new FilterOption(make, make));
+            }
+        }
+
+        return options;
+    }
+
+    private List<FilterOption> GetVisibleModelOptions()
+    {
+        if (!HasSelectedMake())
+        {
+            return [];
+        }
+
+        var options = new List<FilterOption>(_availableModels.Count + 1);
+        var query = _modelQuery.Trim();
+        var allModelsLabel = Localizer["AllModels"].Value;
+        if (query.Length == 0 || allModelsLabel.Contains(query, StringComparison.OrdinalIgnoreCase))
+        {
+            options.Add(new FilterOption(allModelsLabel, string.Empty));
+        }
+
+        foreach (var model in GetDistinctSortedOptions(_availableModels, _selectedModel))
+        {
+            if (query.Length == 0 || model.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                options.Add(new FilterOption(model, model));
+            }
+        }
+
+        return options;
+    }
+
+    private static List<string> GetDistinctSortedOptions(List<string> options, string selectedValue)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var distinctOptions = new List<string>(options.Count + 1);
+        foreach (var option in options)
+        {
+            if (seen.Add(option))
+            {
+                distinctOptions.Add(option);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedValue) && seen.Add(selectedValue))
+        {
+            distinctOptions.Add(selectedValue);
+        }
+
+        distinctOptions.Sort(StringComparer.OrdinalIgnoreCase);
+        return distinctOptions;
+    }
+
+    private string? ActiveMakeOptionId()
+    {
+        var options = GetVisibleMakeOptions();
+        if (!_isMakeOptionsOpen || _highlightedMakeOptionIndex < 0 || _highlightedMakeOptionIndex >= options.Count)
+        {
+            return null;
+        }
+
+        return GetMakeOptionId(_highlightedMakeOptionIndex);
+    }
+
+    private string? ActiveModelOptionId()
+    {
+        var options = GetVisibleModelOptions();
+        if (!_isModelOptionsOpen || _highlightedModelOptionIndex < 0 || _highlightedModelOptionIndex >= options.Count)
+        {
+            return null;
+        }
+
+        return GetModelOptionId(_highlightedModelOptionIndex);
+    }
+
+    private static string GetMakeOptionId(int index)
+    {
+        return $"listings-make-option-{index}";
+    }
+
+    private static string GetModelOptionId(int index)
+    {
+        return $"listings-model-option-{index}";
+    }
+
+    private void SetMakeHighlightToFirstOption()
+    {
+        var options = GetVisibleMakeOptions();
+        _highlightedMakeOptionIndex = options.Count == 0 ? -1 : 0;
+    }
+
+    private void SetModelHighlightToFirstOption()
+    {
+        var options = GetVisibleModelOptions();
+        _highlightedModelOptionIndex = options.Count == 0 ? -1 : 0;
+    }
+
+    private void SetMakeHighlightToSelectedOrFirst()
+    {
+        var options = GetVisibleMakeOptions();
+        if (options.Count == 0)
+        {
+            _highlightedMakeOptionIndex = -1;
+            return;
+        }
+
+        var selectedIndex = options.FindIndex(option => string.Equals(option.Value, _selectedMake, StringComparison.Ordinal));
+        _highlightedMakeOptionIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    }
+
+    private void SetModelHighlightToSelectedOrFirst()
+    {
+        var options = GetVisibleModelOptions();
+        if (options.Count == 0)
+        {
+            _highlightedModelOptionIndex = -1;
+            return;
+        }
+
+        var selectedIndex = options.FindIndex(option => string.Equals(option.Value, _selectedModel, StringComparison.Ordinal));
+        _highlightedModelOptionIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    }
+
+    private async Task MoveMakeHighlightAsync(int delta)
+    {
+        var options = GetVisibleMakeOptions();
+        if (options.Count == 0)
+        {
+            _highlightedMakeOptionIndex = -1;
+            return;
+        }
+
+        _isMakeOptionsOpen = true;
+        if (_highlightedMakeOptionIndex < 0 || _highlightedMakeOptionIndex >= options.Count)
+        {
+            _highlightedMakeOptionIndex = delta > 0 ? 0 : options.Count - 1;
+            await ScrollHighlightedMakeOptionIntoViewAsync();
+            return;
+        }
+
+        var nextIndex = _highlightedMakeOptionIndex + delta;
+        if (nextIndex < 0)
+        {
+            nextIndex = options.Count - 1;
+        }
+        else if (nextIndex >= options.Count)
+        {
+            nextIndex = 0;
+        }
+
+        _highlightedMakeOptionIndex = nextIndex;
+        await ScrollHighlightedMakeOptionIntoViewAsync();
+    }
+
+    private async Task MoveModelHighlightAsync(int delta)
+    {
+        var options = GetVisibleModelOptions();
+        if (options.Count == 0)
+        {
+            _highlightedModelOptionIndex = -1;
+            return;
+        }
+
+        _isModelOptionsOpen = true;
+        if (_highlightedModelOptionIndex < 0 || _highlightedModelOptionIndex >= options.Count)
+        {
+            _highlightedModelOptionIndex = delta > 0 ? 0 : options.Count - 1;
+            await ScrollHighlightedModelOptionIntoViewAsync();
+            return;
+        }
+
+        var nextIndex = _highlightedModelOptionIndex + delta;
+        if (nextIndex < 0)
+        {
+            nextIndex = options.Count - 1;
+        }
+        else if (nextIndex >= options.Count)
+        {
+            nextIndex = 0;
+        }
+
+        _highlightedModelOptionIndex = nextIndex;
+        await ScrollHighlightedModelOptionIntoViewAsync();
+    }
+
+    private Task ScrollHighlightedMakeOptionIntoViewAsync()
+    {
+        if (!_isMakeOptionsOpen || _highlightedMakeOptionIndex < 0)
+        {
+            _pendingMakeOptionScrollId = null;
+            return Task.CompletedTask;
+        }
+
+        _pendingMakeOptionScrollId = GetMakeOptionId(_highlightedMakeOptionIndex);
+        return Task.CompletedTask;
+    }
+
+    private Task ScrollHighlightedModelOptionIntoViewAsync()
+    {
+        if (!_isModelOptionsOpen || _highlightedModelOptionIndex < 0)
+        {
+            _pendingModelOptionScrollId = null;
+            return Task.CompletedTask;
+        }
+
+        _pendingModelOptionScrollId = GetModelOptionId(_highlightedModelOptionIndex);
+        return Task.CompletedTask;
+    }
+
+    private sealed record FilterOption(string Label, string Value);
 }

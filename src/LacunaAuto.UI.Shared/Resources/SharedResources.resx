@@ -118,6 +118,12 @@
   <data name="AllMakes" xml:space="preserve">
     <value>All makes</value>
   </data>
+  <data name="Model" xml:space="preserve">
+    <value>Model</value>
+  </data>
+  <data name="AllModels" xml:space="preserve">
+    <value>All models</value>
+  </data>
   <data name="Sell" xml:space="preserve">
     <value>Sell</value>
   </data>
@@ -212,6 +218,9 @@
   </data>
   <data name="ErrorLoadingMakes" xml:space="preserve">
     <value>Unable to load make options</value>
+  </data>
+  <data name="ErrorLoadingModels" xml:space="preserve">
+    <value>Unable to load model options</value>
   </data>
   <data name="NotFound" xml:space="preserve">
     <value>Not found</value>
