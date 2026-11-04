@@ -198,6 +198,21 @@
   <data name="ModelYearOldestFirst" xml:space="preserve">
     <value>Старые сначала</value>
   </data>
+  <data name="Previous" xml:space="preserve">
+    <value>Предыдущая</value>
+  </data>
+  <data name="Next" xml:space="preserve">
+    <value>Следующая</value>
+  </data>
+  <data name="PageIndicator" xml:space="preserve">
+    <value>Страница {0} из {1}</value>
+  </data>
+  <data name="ListingsPagination" xml:space="preserve">
+    <value>Пагинация списка объявлений</value>
+  </data>
+  <data name="ErrorLoadingMakes" xml:space="preserve">
+    <value>Не удалось загрузить марки</value>
+  </data>
   <data name="NotFound" xml:space="preserve">
     <value>Не найдено</value>
   </data>

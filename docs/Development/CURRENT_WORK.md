@@ -21,11 +21,38 @@ Keep this as a small end-to-end slice. Do not start authentication, listing mana
 
 Continue the product roadmap with the first agreed browsing behavior.
 
-- continue milestone 2 with the next agreed browsing behavior (pagination and additional filters in separate slices);
+- continue milestone 2 with additional filters in separate slices;
 - keep prices in each listing's original currency until real conversion is explicitly implemented.
 
 ## Recently Completed
 
+- Listings pagination review follow-up completed on `feature/listings-pagination`.
+  - Added post-pagination accessibility behavior on `/listings`: after successful Previous/Next actions, the app scrolls the next-page results start under the sticky header and moves focus to the results heading for keyboard/screen-reader continuity.
+  - Limited upstream `400 ProblemDetails` passthrough in the Web proxy to `GET /api/listings/page` only; other listings routes keep existing non-success handling.
+  - Extended the live Web-proxy + PostgreSQL Playwright contract check to request page 1 and page 2 with `pageSize=3`, assert exact ordered ID slices, and verify consistent totals across both pages.
+  - Added mocked UI regressions for:
+    - 390px keyboard-activated Next pagination focus/scroll behavior.
+    - Catalog shrink invalidating the requested page, with a single recovery fetch to the last valid page.
+  - Verification on 2026-11-04:
+    - `dotnet build src/LacunaAuto.Web/LacunaAuto.Web/LacunaAuto.Web.csproj` — passed.
+    - `dotnet test test/LacunaAuto.Api.Test/LacunaAuto.Api.Test.csproj` — **33/33 passed**.
+    - `dotnet test test/LacunaAuto.UI.Shared.Tests/LacunaAuto.UI.Shared.Tests.csproj` — **24/24 passed**.
+    - `npm --prefix e2e test -- specs/listings.spec.ts specs/api-browsing.spec.ts` — **23/23 passed**.
+    - `npm --prefix e2e test` — **59/59 passed**.
+    - `dotnet restore/build/test LacunaAuto.sln` — blocked by existing `NETSDK1147` MAUI Android workload requirement (`LacunaAuto.Hybrid` / `LacunaAuto.Frontend`), unchanged by this follow-up.
+- Listings server-side pagination slice implemented on `feature/listings-pagination`.
+  - Added paged public route `GET /api/listings/page` with 1-based paging (`page`, `pageSize`), default page size `8`, maximum `24`, and `400 ProblemDetails` + `traceId` for malformed/out-of-range pagination parameters.
+  - Preserved Home contract by keeping `GET /api/listings` as the existing array response, and added `GET /api/listings/makes` for make options independent of current page.
+  - Applied published-only and optional make filtering before counting and paging, preserved year sort semantics plus `Id` tie-breaker, and bounded offset math for large page values (including `page=2147483647`).
+  - Updated Web proxy forwarding for `/api/listings/page` and `/api/listings/makes`; current behavior forwards upstream `400` payloads for `/api/listings/page` and preserves existing outage handling for other listings routes.
+  - Updated `/listings` UI to use server-side pagination with localized Previous/Next controls and page indicator, filtered-total header count (including singular label behavior), page reset on make/sort changes, one-time fallback to the last valid page after shrink, retryable make-options errors, and retry preserving selected make/sort/page on page-request failures.
+  - Updated mocks and tests for the new routes while preserving the normal eight-listing development seed.
+  - Verification on 2026-11-03:
+    - `dotnet test test/LacunaAuto.Api.Test/LacunaAuto.Api.Test.csproj` — **33/33 passed**.
+    - `dotnet test test/LacunaAuto.UI.Shared.Tests/LacunaAuto.UI.Shared.Tests.csproj` — **24/24 passed**.
+    - `npm --prefix e2e test -- specs/listings.spec.ts specs/api-browsing.spec.ts` — **21/21 passed**.
+    - `npm --prefix e2e test` — **57/57 passed**.
+    - `dotnet restore/build/test LacunaAuto.sln` — blocked by existing `NETSDK1147` MAUI Android workload requirement (`LacunaAuto.Hybrid` / `LacunaAuto.Frontend`), unchanged by this slice.
 - Listings year-sort UX follow-up on `feature/listings-year-sort`: made the two model-year directions visually distinct in the closed selector at 390px for EN/UK/RU.
   - Shortened localized sort options so distinguishing words appear first (`Newest first` / `Oldest first`, `Новіші спочатку` / `Старіші спочатку`, `Новые сначала` / `Старые сначала`).
   - Kept model-year context in the sort control accessible name (`Sort by model year` and localized equivalents).

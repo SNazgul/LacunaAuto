@@ -11,9 +11,13 @@ public static class ListingsProxyEndpoints
     public static IEndpointRouteBuilder MapListingsProxyEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/api/listings", (string? make, string? sort, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
-            ForwardAsync(BuildListingsRoute(make, sort), "api/listings", clients, context, logs));
+            ForwardAsync(BuildListingsRoute(make, sort), "api/listings", clients, context, logs, allowBadRequestPassthrough: false));
+        endpoints.MapGet("/api/listings/page", (string? make, string? sort, string? page, string? pageSize, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
+            ForwardAsync(BuildListingsPageRoute(make, sort, page, pageSize), "api/listings/page", clients, context, logs, allowBadRequestPassthrough: true));
+        endpoints.MapGet("/api/listings/makes", (IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
+            ForwardAsync("api/listings/makes", "api/listings/makes", clients, context, logs, allowBadRequestPassthrough: false));
         endpoints.MapGet("/api/listings/{id:int}", (int id, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
-            ForwardAsync($"api/listings/{id}", $"api/listings/{id}", clients, context, logs));
+            ForwardAsync($"api/listings/{id}", $"api/listings/{id}", clients, context, logs, allowBadRequestPassthrough: false));
         return endpoints;
     }
 
@@ -22,7 +26,8 @@ public static class ListingsProxyEndpoints
         string routeForLogs,
         IHttpClientFactory clients,
         HttpContext context,
-        ILoggerFactory logs)
+        ILoggerFactory logs,
+        bool allowBadRequestPassthrough)
     {
         var logger = logs.CreateLogger("ListingsApi");
         try
@@ -36,10 +41,10 @@ public static class ListingsProxyEndpoints
                     contentType: "application/problem+json", statusCode: 404);
             }
 
-            if (response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode ||
+                allowBadRequestPassthrough && response.StatusCode == HttpStatusCode.BadRequest)
             {
-                var content = await response.Content.ReadAsByteArrayAsync(context.RequestAborted);
-                return Results.Bytes(content, response.Content.Headers.ContentType?.ToString() ?? "application/json");
+                return await ForwardContentAsync(response, context);
             }
 
             logger.LogWarning("Listings API returned {StatusCode} for {RequestPath}. TraceId {TraceId}, SpanId {SpanId}",
@@ -54,6 +59,15 @@ public static class ListingsProxyEndpoints
 
         return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "Listings are temporarily unavailable.",
             extensions: new Dictionary<string, object?> { ["traceId"] = context.TraceIdentifier });
+    }
+
+    private static async Task<IResult> ForwardContentAsync(HttpResponseMessage response, HttpContext context)
+    {
+        var content = await response.Content.ReadAsByteArrayAsync(context.RequestAborted);
+        return new ProxiedContentResult(
+            content,
+            (int)response.StatusCode,
+            response.Content.Headers.ContentType?.ToString() ?? "application/json");
     }
 
     private static string BuildListingsRoute(string? make, string? sort)
@@ -75,6 +89,38 @@ public static class ListingsProxyEndpoints
             : $"api/listings?{string.Join("&", queryValues)}";
     }
 
+    private static string BuildListingsPageRoute(string? make, string? sort, string? page, string? pageSize)
+    {
+        var queryValues = new List<string>(4);
+        if (!string.IsNullOrWhiteSpace(make))
+        {
+            queryValues.Add($"make={Uri.EscapeDataString(make.Trim())}");
+        }
+
+        var normalizedSort = NormalizeSort(sort);
+        if (normalizedSort is not null)
+        {
+            queryValues.Add($"sort={Uri.EscapeDataString(normalizedSort)}");
+        }
+
+        AppendRawQueryValue(queryValues, "page", page);
+        AppendRawQueryValue(queryValues, "pageSize", pageSize);
+
+        return queryValues.Count == 0
+            ? "api/listings/page"
+            : $"api/listings/page?{string.Join("&", queryValues)}";
+    }
+
+    private static void AppendRawQueryValue(List<string> queryValues, string queryName, string? queryValue)
+    {
+        if (string.IsNullOrWhiteSpace(queryValue))
+        {
+            return;
+        }
+
+        queryValues.Add($"{queryName}={Uri.EscapeDataString(queryValue.Trim())}");
+    }
+
     private static string? NormalizeSort(string? sort)
     {
         if (string.IsNullOrWhiteSpace(sort))
@@ -84,5 +130,19 @@ public static class ListingsProxyEndpoints
 
         var normalizedSort = sort.Trim();
         return normalizedSort is _sortYearDesc or _sortYearAsc ? normalizedSort : null;
+    }
+
+    private sealed class ProxiedContentResult(byte[] payload, int statusCode, string contentType) : IResult
+    {
+        private readonly byte[] _payload = payload;
+        private readonly int _statusCode = statusCode;
+        private readonly string _contentType = contentType;
+
+        public async Task ExecuteAsync(HttpContext httpContext)
+        {
+            httpContext.Response.StatusCode = _statusCode;
+            httpContext.Response.ContentType = _contentType;
+            await httpContext.Response.Body.WriteAsync(_payload, httpContext.RequestAborted);
+        }
     }
 }

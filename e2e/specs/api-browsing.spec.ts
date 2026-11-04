@@ -10,9 +10,23 @@ const listing = {
   imageUrl: null, isNew: false,
 };
 
+const paged = (items: unknown[], page = 1, pageSize = 8, totalCount = items.length, totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / pageSize)) => ({
+  items,
+  page,
+  pageSize,
+  totalCount,
+  totalPages,
+});
+
 for (const path of ["/", "/listings"]) {
   test(`${path} renders the API payload and opens its real ID`, async ({ page }) => {
-    await page.route("**/api/listings", route => route.fulfill({ json: [listing] }));
+    if (path === "/") {
+      await page.route("**/api/listings", route => route.fulfill({ json: [listing] }));
+    } else {
+      await page.route("**/api/listings/makes", route => route.fulfill({ json: ["API Motors"] }));
+      await page.route("**/api/listings/page*", route => route.fulfill({ json: paged([listing]) }));
+    }
+
     await page.route("**/api/listings/101", route => route.fulfill({ json: listing }));
     await gotoApp(page, path, ".listing-card");
     await expect(page.locator(".listing-card")).toHaveCount(1);
@@ -30,10 +44,19 @@ for (const path of ["/", "/listings"]) {
   test(`${path} distinguishes loading from an empty API result`, async ({ page }) => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
-    await page.route("**/api/listings", async route => {
-      await gate;
-      await route.fulfill({ json: [] });
-    });
+    if (path === "/") {
+      await page.route("**/api/listings", async route => {
+        await gate;
+        await route.fulfill({ json: [] });
+      });
+    } else {
+      await page.route("**/api/listings/makes", route => route.fulfill({ json: [] }));
+      await page.route("**/api/listings/page*", async route => {
+        await gate;
+        await route.fulfill({ json: paged([]) });
+      });
+    }
+
     try {
       await page.goto(absoluteUrl(path));
       await expect(page.locator(".skeleton-card")).toHaveCount(4);
@@ -49,10 +72,19 @@ for (const path of ["/", "/listings"]) {
 
   test(`${path} retries a failed API request without seed fallback`, async ({ page }) => {
     let attempts = 0;
-    await page.route("**/api/listings", route => {
-      attempts++;
-      return route.fulfill(attempts === 1 ? { status: 503, json: {} } : { json: [listing] });
-    });
+    if (path === "/") {
+      await page.route("**/api/listings", route => {
+        attempts++;
+        return route.fulfill(attempts === 1 ? { status: 503, json: {} } : { json: [listing] });
+      });
+    } else {
+      await page.route("**/api/listings/makes", route => route.fulfill({ json: ["API Motors"] }));
+      await page.route("**/api/listings/page*", route => {
+        attempts++;
+        return route.fulfill(attempts === 1 ? { status: 503, json: {} } : { json: paged([listing]) });
+      });
+    }
+
     await page.goto(absoluteUrl(path));
     await expect(page.getByRole("alert")).toBeVisible();
     await expect(page.locator(".listing-card")).toHaveCount(0);
@@ -62,7 +94,13 @@ for (const path of ["/", "/listings"]) {
   });
 
   test(`${path} treats a malformed API payload as an error`, async ({ page }) => {
-    await page.route("**/api/listings", route => route.fulfill({ json: null }));
+    if (path === "/") {
+      await page.route("**/api/listings", route => route.fulfill({ json: null }));
+    } else {
+      await page.route("**/api/listings/makes", route => route.fulfill({ json: ["API Motors"] }));
+      await page.route("**/api/listings/page*", route => route.fulfill({ json: null }));
+    }
+
     await page.goto(absoluteUrl(path));
     await expect(page.getByRole("alert")).toBeVisible();
     await expect(page.locator(".listing-card")).toHaveCount(0);
@@ -149,6 +187,7 @@ test("Web forwards the live API contract and keeps missing details as JSON 404",
   expect(response.status()).toBe(200);
   const cards = await response.json();
   expect(cards.length).toBe(8);
+  const expectedOrderedIds = cards.map((card: { id: number }) => card.id);
 
   const teslaFiltered = await request.get(absoluteUrl("/api/listings?make=tesla"));
   expect(teslaFiltered.status()).toBe(200);
@@ -195,6 +234,63 @@ test("Web forwards the live API contract and keeps missing details as JSON 404",
   expect(makeAndSortCards.length).toBeGreaterThan(0);
   expect(makeAndSortCards.every((card: { make: string }) => card.make.toLowerCase() === "tesla")).toBe(true);
   expect(isOrderedByYear(makeAndSortCards, "desc")).toBe(true);
+
+  const pagedPageOne = await request.get(absoluteUrl("/api/listings/page?page=1&pageSize=3"));
+  expect(pagedPageOne.status()).toBe(200);
+  const pagedPageOnePayload = await pagedPageOne.json();
+  expect(pagedPageOnePayload.page).toBe(1);
+  expect(pagedPageOnePayload.pageSize).toBe(3);
+  expect(pagedPageOnePayload.totalCount).toBe(cards.length);
+  expect(pagedPageOnePayload.totalPages).toBe(Math.ceil(cards.length / 3));
+  expect(pagedPageOnePayload.items.map((card: { id: number }) => card.id)).toEqual(expectedOrderedIds.slice(0, 3));
+
+  const pagedPageTwo = await request.get(absoluteUrl("/api/listings/page?page=2&pageSize=3"));
+  expect(pagedPageTwo.status()).toBe(200);
+  const pagedPageTwoPayload = await pagedPageTwo.json();
+  expect(pagedPageTwoPayload.page).toBe(2);
+  expect(pagedPageTwoPayload.pageSize).toBe(3);
+  expect(pagedPageTwoPayload.totalCount).toBe(cards.length);
+  expect(pagedPageTwoPayload.totalPages).toBe(Math.ceil(cards.length / 3));
+  expect(pagedPageTwoPayload.items.map((card: { id: number }) => card.id)).toEqual(expectedOrderedIds.slice(3, 6));
+
+  const pagedMakeAndSort = await request.get(absoluteUrl("/api/listings/page?make=tesla&sort=year-desc&page=1&pageSize=8"));
+  expect(pagedMakeAndSort.status()).toBe(200);
+  const pagedMakeAndSortPayload = await pagedMakeAndSort.json();
+  expect(pagedMakeAndSortPayload.totalCount).toBeGreaterThan(0);
+  expect(pagedMakeAndSortPayload.items.every((card: { make: string }) => card.make.toLowerCase() === "tesla")).toBe(true);
+  expect(isOrderedByYear(pagedMakeAndSortPayload.items, "desc")).toBe(true);
+
+  const beyondLastPage = await request.get(absoluteUrl("/api/listings/page?page=2147483647&pageSize=8"));
+  expect(beyondLastPage.status()).toBe(200);
+  const beyondLastPagePayload = await beyondLastPage.json();
+  expect(beyondLastPagePayload.page).toBe(2147483647);
+  expect(beyondLastPagePayload.pageSize).toBe(8);
+  expect(beyondLastPagePayload.totalCount).toBe(cards.length);
+  expect(beyondLastPagePayload.totalPages).toBe(1);
+  expect(beyondLastPagePayload.items).toEqual([]);
+
+  const invalidPage = await request.get(absoluteUrl("/api/listings/page?page=abc&pageSize=8"));
+  expect(invalidPage.status()).toBe(400);
+  expect(invalidPage.headers()["content-type"]).toContain("application/problem+json");
+  const invalidPageProblem = await invalidPage.json();
+  expect(invalidPageProblem.title).toBe("Invalid pagination parameters.");
+  expect(typeof invalidPageProblem.traceId).toBe("string");
+  expect(invalidPageProblem.traceId.length).toBeGreaterThan(0);
+
+  const invalidPageSize = await request.get(absoluteUrl("/api/listings/page?page=1&pageSize=25"));
+  expect(invalidPageSize.status()).toBe(400);
+  expect(invalidPageSize.headers()["content-type"]).toContain("application/problem+json");
+  const invalidPageSizeProblem = await invalidPageSize.json();
+  expect(invalidPageSizeProblem.title).toBe("Invalid pagination parameters.");
+  expect(typeof invalidPageSizeProblem.traceId).toBe("string");
+  expect(invalidPageSizeProblem.traceId.length).toBeGreaterThan(0);
+
+  const makesResponse = await request.get(absoluteUrl("/api/listings/makes"));
+  expect(makesResponse.status()).toBe(200);
+  const makes = await makesResponse.json();
+  expect(Array.isArray(makes)).toBe(true);
+  expect(makes.length).toBeGreaterThan(0);
+  expect(makes.some((make: string) => make.toLowerCase() === "volkswagen")).toBe(true);
 
   const detail = await request.get(absoluteUrl(`/api/listings/${cards[0].id}`));
   expect(detail.status()).toBe(200);
