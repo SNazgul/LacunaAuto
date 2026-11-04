@@ -26,6 +26,8 @@ Continue the product roadmap with the first agreed browsing behavior.
 
 ## Recently Completed
 
+- Increased the STRATA Vision smoke timeout from 60 to 240 seconds. All eight runner tests passed, and the two-PNG check accepted a loopback response delayed by 65 seconds.
+
 - Listings pagination review follow-up completed on `feature/listings-pagination`.
   - Added post-pagination accessibility behavior on `/listings`: after successful Previous/Next actions, the app scrolls the next-page results start under the sticky header and moves focus to the results heading for keyboard/screen-reader continuity.
   - Limited upstream `400 ProblemDetails` passthrough in the Web proxy to `GET /api/listings/page` only; other listings routes keep existing non-success handling.

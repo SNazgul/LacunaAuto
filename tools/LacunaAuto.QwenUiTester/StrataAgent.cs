@@ -410,7 +410,7 @@ internal sealed class StrataAgent : IDisposable
             },
         ];
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(240));
         try
         {
             var response = await SendAsync(messages, tools, JsonValue.Create("none"),
