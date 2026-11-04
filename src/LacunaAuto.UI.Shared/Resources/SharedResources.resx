@@ -183,6 +183,21 @@
   <data name="Newest" xml:space="preserve">
     <value>Newest</value>
   </data>
+  <data name="Sort" xml:space="preserve">
+    <value>Sort</value>
+  </data>
+  <data name="SortByModelYear" xml:space="preserve">
+    <value>Sort by model year</value>
+  </data>
+  <data name="DefaultOrder" xml:space="preserve">
+    <value>Default order</value>
+  </data>
+  <data name="ModelYearNewestFirst" xml:space="preserve">
+    <value>Newest first</value>
+  </data>
+  <data name="ModelYearOldestFirst" xml:space="preserve">
+    <value>Oldest first</value>
+  </data>
   <data name="NotFound" xml:space="preserve">
     <value>Not found</value>
   </data>

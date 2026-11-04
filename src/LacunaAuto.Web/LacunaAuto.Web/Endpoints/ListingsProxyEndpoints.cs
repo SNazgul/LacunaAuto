@@ -5,10 +5,13 @@ namespace LacunaAuto.Web.Endpoints;
 
 public static class ListingsProxyEndpoints
 {
+    private const string _sortYearDesc = "year-desc";
+    private const string _sortYearAsc = "year-asc";
+
     public static IEndpointRouteBuilder MapListingsProxyEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/listings", (string? make, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
-            ForwardAsync(BuildListingsRoute(make), "api/listings", clients, context, logs));
+        endpoints.MapGet("/api/listings", (string? make, string? sort, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
+            ForwardAsync(BuildListingsRoute(make, sort), "api/listings", clients, context, logs));
         endpoints.MapGet("/api/listings/{id:int}", (int id, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
             ForwardAsync($"api/listings/{id}", $"api/listings/{id}", clients, context, logs));
         return endpoints;
@@ -53,13 +56,33 @@ public static class ListingsProxyEndpoints
             extensions: new Dictionary<string, object?> { ["traceId"] = context.TraceIdentifier });
     }
 
-    private static string BuildListingsRoute(string? make)
+    private static string BuildListingsRoute(string? make, string? sort)
     {
-        if (string.IsNullOrWhiteSpace(make))
+        var queryValues = new List<string>(2);
+        if (!string.IsNullOrWhiteSpace(make))
         {
-            return "api/listings";
+            queryValues.Add($"make={Uri.EscapeDataString(make.Trim())}");
         }
 
-        return $"api/listings?make={Uri.EscapeDataString(make.Trim())}";
+        var normalizedSort = NormalizeSort(sort);
+        if (normalizedSort is not null)
+        {
+            queryValues.Add($"sort={Uri.EscapeDataString(normalizedSort)}");
+        }
+
+        return queryValues.Count == 0
+            ? "api/listings"
+            : $"api/listings?{string.Join("&", queryValues)}";
+    }
+
+    private static string? NormalizeSort(string? sort)
+    {
+        if (string.IsNullOrWhiteSpace(sort))
+        {
+            return null;
+        }
+
+        var normalizedSort = sort.Trim();
+        return normalizedSort is _sortYearDesc or _sortYearAsc ? normalizedSort : null;
     }
 }

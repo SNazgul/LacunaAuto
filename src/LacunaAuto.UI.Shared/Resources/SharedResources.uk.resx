@@ -183,6 +183,21 @@
   <data name="Newest" xml:space="preserve">
     <value>Найновіші</value>
   </data>
+  <data name="Sort" xml:space="preserve">
+    <value>Сортування</value>
+  </data>
+  <data name="SortByModelYear" xml:space="preserve">
+    <value>Сортування за роком моделі</value>
+  </data>
+  <data name="DefaultOrder" xml:space="preserve">
+    <value>Порядок за замовчуванням</value>
+  </data>
+  <data name="ModelYearNewestFirst" xml:space="preserve">
+    <value>Новіші спочатку</value>
+  </data>
+  <data name="ModelYearOldestFirst" xml:space="preserve">
+    <value>Старіші спочатку</value>
+  </data>
   <data name="NotFound" xml:space="preserve">
     <value>Не знайдено</value>
   </data>

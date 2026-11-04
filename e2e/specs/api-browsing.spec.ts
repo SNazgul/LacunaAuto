@@ -129,6 +129,22 @@ test("details reloads on parameter changes and ignores a cancelled response", as
 });
 
 test("Web forwards the live API contract and keeps missing details as JSON 404", async ({ request }) => {
+  const isOrderedByYear = (
+    cards: Array<{ year: number; id: number }>,
+    direction: "asc" | "desc"
+  ): boolean => cards.every((card, index) => {
+    if (index === 0) {
+      return true;
+    }
+
+    const previous = cards[index - 1];
+    if (direction === "desc") {
+      return previous.year > card.year || (previous.year === card.year && previous.id < card.id);
+    }
+
+    return previous.year < card.year || (previous.year === card.year && previous.id < card.id);
+  });
+
   const response = await request.get(absoluteUrl("/api/listings"));
   expect(response.status()).toBe(200);
   const cards = await response.json();
@@ -148,6 +164,37 @@ test("Web forwards the live API contract and keeps missing details as JSON 404",
   const noMatches = await request.get(absoluteUrl("/api/listings?make=NotARealMake"));
   expect(noMatches.status()).toBe(200);
   expect((await noMatches.json())).toEqual([]);
+
+  const yearDesc = await request.get(absoluteUrl("/api/listings?sort=year-desc"));
+  expect(yearDesc.status()).toBe(200);
+  const yearDescCards = await yearDesc.json();
+  expect(yearDescCards.length).toBe(cards.length);
+  expect(isOrderedByYear(yearDescCards, "desc")).toBe(true);
+
+  const yearAsc = await request.get(absoluteUrl("/api/listings?sort=year-asc"));
+  expect(yearAsc.status()).toBe(200);
+  const yearAscCards = await yearAsc.json();
+  expect(yearAscCards.length).toBe(cards.length);
+  expect(isOrderedByYear(yearAscCards, "asc")).toBe(true);
+
+  const unsupportedSort = await request.get(absoluteUrl("/api/listings?sort=newest"));
+  expect(unsupportedSort.status()).toBe(200);
+  expect((await unsupportedSort.json()).map((card: { id: number }) => card.id)).toEqual(
+    cards.map((card: { id: number }) => card.id)
+  );
+
+  const blankSort = await request.get(absoluteUrl("/api/listings?sort=%20%20%20"));
+  expect(blankSort.status()).toBe(200);
+  expect((await blankSort.json()).map((card: { id: number }) => card.id)).toEqual(
+    cards.map((card: { id: number }) => card.id)
+  );
+
+  const makeAndSort = await request.get(absoluteUrl("/api/listings?make=tesla&sort=year-desc"));
+  expect(makeAndSort.status()).toBe(200);
+  const makeAndSortCards = await makeAndSort.json();
+  expect(makeAndSortCards.length).toBeGreaterThan(0);
+  expect(makeAndSortCards.every((card: { make: string }) => card.make.toLowerCase() === "tesla")).toBe(true);
+  expect(isOrderedByYear(makeAndSortCards, "desc")).toBe(true);
 
   const detail = await request.get(absoluteUrl(`/api/listings/${cards[0].id}`));
   expect(detail.status()).toBe(200);

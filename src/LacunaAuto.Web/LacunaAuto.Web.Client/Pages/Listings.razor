@@ -17,22 +17,36 @@
         </button>
         <div class="header-info">
             <span class="result-count">@(_isLoading ? Localizer["Loading"] : _hasError ? Localizer["ErrorLoadingContent"] : ResultCountText())</span>
-            <span class="sort-label">@Localizer["Newest"]</span>
         </div>
-        <div class="make-filter">
-            <label class="visually-hidden" for="listings-make-filter">@Localizer["Make"]</label>
-            <select id="listings-make-filter"
-                    class="make-filter-select"
-                    aria-label="@Localizer["Make"]"
-                    value="@_selectedMake"
-                    @onchange="OnMakeSelectionChanged"
-                    disabled="@_isLoading">
-                <option value="">@Localizer["AllMakes"]</option>
-                @foreach (var make in _availableMakes)
-                {
-                    <option value="@make">@make</option>
-                }
-            </select>
+        <div class="header-controls">
+            <div class="sort-filter">
+                <label class="visually-hidden" for="listings-sort-filter">@Localizer["SortByModelYear"]</label>
+                <select id="listings-sort-filter"
+                        class="sort-filter-select"
+                        aria-label="@Localizer["SortByModelYear"]"
+                        value="@_selectedSort"
+                        @onchange="OnSortSelectionChanged"
+                        disabled="@_isLoading">
+                    <option value="">@Localizer["DefaultOrder"]</option>
+                    <option value="@_sortYearDesc">@Localizer["ModelYearNewestFirst"]</option>
+                    <option value="@_sortYearAsc">@Localizer["ModelYearOldestFirst"]</option>
+                </select>
+            </div>
+            <div class="make-filter">
+                <label class="visually-hidden" for="listings-make-filter">@Localizer["Make"]</label>
+                <select id="listings-make-filter"
+                        class="make-filter-select"
+                        aria-label="@Localizer["Make"]"
+                        value="@_selectedMake"
+                        @onchange="OnMakeSelectionChanged"
+                        disabled="@_isLoading">
+                    <option value="">@Localizer["AllMakes"]</option>
+                    @foreach (var make in _availableMakes)
+                    {
+                        <option value="@make">@make</option>
+                    }
+                </select>
+            </div>
         </div>
     </header>
 
@@ -62,12 +76,16 @@
 @code {
     private IReadOnlyList<VehicleListingCardModel> _listings = Array.Empty<VehicleListingCardModel>();
 
+    private const string _sortYearDesc = "year-desc";
+    private const string _sortYearAsc = "year-asc";
+
     private readonly List<string> _availableMakes = [];
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _activeRequest;
     private bool _isLoading = true;
     private bool _hasError;
     private string _selectedMake = string.Empty;
+    private string _selectedSort = string.Empty;
     private int _loadVersion;
 
     protected override Task OnInitializedAsync() => LoadAsync();
@@ -83,7 +101,8 @@
         try
         {
             var selectedMake = SelectedMakeOrNull();
-            var listings = await BrowsingApi.GetListingsAsync(selectedMake, request.Token);
+            var selectedSort = SelectedSortOrNull();
+            var listings = await BrowsingApi.GetListingsAsync(selectedMake, selectedSort, request.Token);
             if (!IsCurrentRequest(requestVersion, request))
             {
                 return;
@@ -145,6 +164,12 @@
         await LoadAsync();
     }
 
+    private async Task OnSortSelectionChanged(ChangeEventArgs args)
+    {
+        _selectedSort = args.Value?.ToString() ?? string.Empty;
+        await LoadAsync();
+    }
+
     private CancellationTokenSource StartNewRequest()
     {
         _activeRequest?.Cancel();
@@ -162,6 +187,17 @@
     private string? SelectedMakeOrNull()
     {
         return string.IsNullOrWhiteSpace(_selectedMake) ? null : _selectedMake.Trim();
+    }
+
+    private string? SelectedSortOrNull()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedSort))
+        {
+            return null;
+        }
+
+        var normalizedSort = _selectedSort.Trim();
+        return normalizedSort is _sortYearDesc or _sortYearAsc ? normalizedSort : null;
     }
 
     private static List<string> CreateMakeOptions(IReadOnlyList<VehicleListingCardModel> listings)
