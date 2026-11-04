@@ -14,10 +14,21 @@ public sealed class ListingsClient(HttpClient httpClient)
         Converters = { new JsonStringEnumConverter(allowIntegerValues: false) }
     };
 
-    public async Task<IReadOnlyList<VehicleListingCardModel>> GetListingsAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<VehicleListingCardModel>> GetListingsAsync(CancellationToken cancellationToken)
     {
+        return GetListingsAsync(make: null, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<VehicleListingCardModel>> GetListingsAsync(string? make, CancellationToken cancellationToken)
+    {
+        var route = "api/listings";
+        if (!string.IsNullOrWhiteSpace(make))
+        {
+            route = $"api/listings?make={Uri.EscapeDataString(make.Trim())}";
+        }
+
         return await _httpClient.GetFromJsonAsync<List<VehicleListingCardModel>>(
-            "api/listings", _jsonOptions, cancellationToken)
+            route, _jsonOptions, cancellationToken)
             ?? throw new JsonException("The listings response was empty.");
     }
 

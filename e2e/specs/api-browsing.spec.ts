@@ -133,6 +133,22 @@ test("Web forwards the live API contract and keeps missing details as JSON 404",
   expect(response.status()).toBe(200);
   const cards = await response.json();
   expect(cards.length).toBe(8);
+
+  const teslaFiltered = await request.get(absoluteUrl("/api/listings?make=tesla"));
+  expect(teslaFiltered.status()).toBe(200);
+  const teslaCards = await teslaFiltered.json();
+  expect(teslaCards.length).toBeGreaterThan(0);
+  expect(teslaCards.length).toBeLessThan(cards.length);
+  expect(teslaCards.every((card: { make: string }) => card.make.toLowerCase() === "tesla")).toBe(true);
+
+  const whitespaceMake = await request.get(absoluteUrl("/api/listings?make=%20%20%20"));
+  expect(whitespaceMake.status()).toBe(200);
+  expect((await whitespaceMake.json()).length).toBe(cards.length);
+
+  const noMatches = await request.get(absoluteUrl("/api/listings?make=NotARealMake"));
+  expect(noMatches.status()).toBe(200);
+  expect((await noMatches.json())).toEqual([]);
+
   const detail = await request.get(absoluteUrl(`/api/listings/${cards[0].id}`));
   expect(detail.status()).toBe(200);
   expect(await detail.json()).toEqual(cards[0]);

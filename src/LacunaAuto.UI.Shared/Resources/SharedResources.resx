@@ -112,6 +112,12 @@
   <data name="Filter" xml:space="preserve">
     <value>Filter</value>
   </data>
+  <data name="Make" xml:space="preserve">
+    <value>Make</value>
+  </data>
+  <data name="AllMakes" xml:space="preserve">
+    <value>All makes</value>
+  </data>
   <data name="Sell" xml:space="preserve">
     <value>Sell</value>
   </data>
@@ -170,6 +176,9 @@
   </data>
   <data name="Results" xml:space="preserve">
     <value>results</value>
+  </data>
+  <data name="Result" xml:space="preserve">
+    <value>result</value>
   </data>
   <data name="Newest" xml:space="preserve">
     <value>Newest</value>

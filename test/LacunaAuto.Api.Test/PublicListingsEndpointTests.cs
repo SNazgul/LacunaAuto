@@ -88,6 +88,136 @@ public sealed class PublicListingsEndpointTests
     }
 
     [Fact]
+    public async Task GetListings_ShouldFilterByMakeUsingExactCaseInsensitiveMatch()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "TESLA", model: "Model Y"),
+            CreateListing(id: 3, isPublished: true, make: "Tesla Motors", model: "Concept"),
+            CreateListing(id: 4, isPublished: false, make: "Tesla", model: "Hidden")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings?make=tesla", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Equal(2, listings.Count);
+        Assert.Equal([1, 2], listings.Select(listing => listing.Id));
+        Assert.All(listings, listing => Assert.Contains(listing.Make, new[] { "Tesla", "TESLA" }));
+    }
+
+    [Fact]
+    public async Task GetListings_ShouldFilterByMakeUsingCaseInsensitiveEqualityForSharpS()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "StraßenAuto", model: "Exact"),
+            CreateListing(id: 2, isPublished: true, make: "StraßenAuto Plus", model: "Not exact"),
+            CreateListing(id: 3, isPublished: false, make: "StraßenAuto", model: "Hidden")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings?make=STRAẞENAUTO", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Single(listings);
+        Assert.Equal(1, listings[0].Id);
+        Assert.Equal("StraßenAuto", listings[0].Make);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("?make=")]
+    [InlineData("?make=%20%20%20")]
+    public async Task GetListings_ShouldTreatMissingOrWhitespaceMakeAsUnfiltered(string querySuffix)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "BMW", model: "X5"),
+            CreateListing(id: 3, isPublished: false, make: "Audi", model: "Q5")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync($"/api/listings{querySuffix}", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Equal(2, listings.Count);
+        Assert.Equal([1, 2], listings.Select(listing => listing.Id));
+    }
+
+    [Fact]
+    public async Task GetListings_ShouldTreatPercentAndUnderscoreAsLiteralCharacters()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Auto%_Group", model: "Literal"),
+            CreateListing(id: 2, isPublished: true, make: "AutoxAGroup", model: "Wildcard-like"),
+            CreateListing(id: 3, isPublished: true, make: "AutoAnyGroup", model: "Wildcard-like")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings?make=auto%25_group", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Single(listings);
+        Assert.Equal(1, listings[0].Id);
+        Assert.Equal("Auto%_Group", listings[0].Make);
+    }
+
+    [Fact]
+    public async Task GetListings_ShouldReturnEmptyWhenMakeHasNoMatches()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "BMW", model: "X5")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings?make=Audi", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var listings = await response.Content.ReadFromJsonAsync<List<PublicListingCardResponse>>(cancellationToken);
+
+        Assert.NotNull(listings);
+        Assert.Empty(listings);
+    }
+
+    [Fact]
     public async Task GetListings_ShouldReturnPublishedListingsInIdOrderWithExpectedValues()
     {
         var cancellationToken = TestContext.Current.CancellationToken;

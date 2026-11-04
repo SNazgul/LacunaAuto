@@ -47,6 +47,38 @@ public sealed class ListingsClientTests
     }
 
     [Fact]
+    public async Task GetListings_ShouldAppendEncodedMakeQueryWhenProvided()
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings", request.RequestUri!.AbsolutePath);
+            Assert.Equal("?make=Auto%25_%20Group", request.RequestUri.Query);
+            return JsonResponse($"[{_cardJson}]");
+        });
+        var service = new ListingsClient(http);
+
+        var listing = Assert.Single(await service.GetListingsAsync("Auto%_ Group", TestContext.Current.CancellationToken));
+        Assert.Equal("Tesla", listing.Make);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task GetListings_ShouldOmitMakeQueryWhenValueIsBlank(string make)
+    {
+        using var http = CreateHttpClient(request =>
+        {
+            Assert.Equal("/api/listings", request.RequestUri!.AbsolutePath);
+            Assert.Equal(string.Empty, request.RequestUri.Query);
+            return JsonResponse($"[{_cardJson}]");
+        });
+        var service = new ListingsClient(http);
+
+        var listing = Assert.Single(await service.GetListingsAsync(make, TestContext.Current.CancellationToken));
+        Assert.Equal(8, listing.Id);
+    }
+
+    [Fact]
     public async Task GetListing_ShouldRequestOnlyTheSelectedId()
     {
         var requests = 0;

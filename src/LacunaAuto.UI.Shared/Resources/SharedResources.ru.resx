@@ -112,6 +112,12 @@
   <data name="Filter" xml:space="preserve">
     <value>Фильтр</value>
   </data>
+  <data name="Make" xml:space="preserve">
+    <value>Марка</value>
+  </data>
+  <data name="AllMakes" xml:space="preserve">
+    <value>Все марки</value>
+  </data>
   <data name="Sell" xml:space="preserve">
     <value>Продать</value>
   </data>
@@ -170,6 +176,9 @@
   </data>
   <data name="Results" xml:space="preserve">
     <value>результатов</value>
+  </data>
+  <data name="Result" xml:space="preserve">
+    <value>результат</value>
   </data>
   <data name="Newest" xml:space="preserve">
     <value>Новейшие</value>
