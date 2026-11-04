@@ -26,6 +26,8 @@ Continue the product roadmap with the first agreed browsing behavior.
 
 ## Recently Completed
 
+- Increased the STRATA Vision smoke timeout from 60 to 240 seconds. All eight runner tests passed, and the two-PNG check accepted a loopback response delayed by 65 seconds.
+
 - Listings combobox Escape→ArrowUp reopen fix completed on `feature/listings-model-filter`.
   - Updated [`Listings.razor`](../../src/LacunaAuto.Web/LacunaAuto.Web.Client/Pages/Listings.razor) so make/model active-option scrolling is queued and executed in `OnAfterRenderAsync`, ensuring the active option scrolls only after the listbox has rendered.
   - Fixed keyboard reopen behavior for both searchable dropdowns: after Escape closes the popup, ArrowUp reopens it on the last option and keeps that option visible.
