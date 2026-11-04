@@ -422,6 +422,8 @@ Preferred controls:
 - segmented chips for fuel/transmission/body type when option count is small;
 - searchable selection list for long option sets.
 
+Use searchable dropdowns for make and model. Update the suggestions as the buyer types, matching part of the name without regard to case. The buyer applies a filter by selecting a suggestion. Changing the make clears the selected model and loads suggestions for the new make. Clearing the make clears both the selected model and its suggestions.
+
 ### 7.4 Actions
 
 Filter panel must provide:
@@ -537,6 +539,8 @@ Suggested steps:
 - camera/gallery integration may be Hybrid-specific;
 - validation appears close to the relevant field;
 - never lose entered data due to navigation.
+
+In the vehicle step, the make and model fields update their dropdown suggestions as the seller types. Model suggestions come from the selected or entered make. When the seller wants to use a new name, offer an explicit action to add the typed value and save it as unverified.
 
 ---
 

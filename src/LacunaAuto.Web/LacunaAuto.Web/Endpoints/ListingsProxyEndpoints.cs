@@ -12,10 +12,12 @@ public static class ListingsProxyEndpoints
     {
         endpoints.MapGet("/api/listings", (string? make, string? sort, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
             ForwardAsync(BuildListingsRoute(make, sort), "api/listings", clients, context, logs, allowBadRequestPassthrough: false));
-        endpoints.MapGet("/api/listings/page", (string? make, string? sort, string? page, string? pageSize, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
-            ForwardAsync(BuildListingsPageRoute(make, sort, page, pageSize), "api/listings/page", clients, context, logs, allowBadRequestPassthrough: true));
+        endpoints.MapGet("/api/listings/page", (string? make, string? model, string? sort, string? page, string? pageSize, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
+            ForwardAsync(BuildListingsPageRoute(make, model, sort, page, pageSize), "api/listings/page", clients, context, logs, allowBadRequestPassthrough: true));
         endpoints.MapGet("/api/listings/makes", (IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
             ForwardAsync("api/listings/makes", "api/listings/makes", clients, context, logs, allowBadRequestPassthrough: false));
+        endpoints.MapGet("/api/listings/models", (string? make, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
+            ForwardAsync(BuildListingsModelsRoute(make), "api/listings/models", clients, context, logs, allowBadRequestPassthrough: true));
         endpoints.MapGet("/api/listings/{id:int}", (int id, IHttpClientFactory clients, HttpContext context, ILoggerFactory logs) =>
             ForwardAsync($"api/listings/{id}", $"api/listings/{id}", clients, context, logs, allowBadRequestPassthrough: false));
         return endpoints;
@@ -89,12 +91,17 @@ public static class ListingsProxyEndpoints
             : $"api/listings?{string.Join("&", queryValues)}";
     }
 
-    private static string BuildListingsPageRoute(string? make, string? sort, string? page, string? pageSize)
+    private static string BuildListingsPageRoute(string? make, string? model, string? sort, string? page, string? pageSize)
     {
-        var queryValues = new List<string>(4);
+        var queryValues = new List<string>(5);
         if (!string.IsNullOrWhiteSpace(make))
         {
             queryValues.Add($"make={Uri.EscapeDataString(make.Trim())}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            queryValues.Add($"model={Uri.EscapeDataString(model.Trim())}");
         }
 
         var normalizedSort = NormalizeSort(sort);
@@ -109,6 +116,15 @@ public static class ListingsProxyEndpoints
         return queryValues.Count == 0
             ? "api/listings/page"
             : $"api/listings/page?{string.Join("&", queryValues)}";
+    }
+
+    private static string BuildListingsModelsRoute(string? make)
+    {
+        var queryValues = new List<string>(1);
+        AppendRawQueryValue(queryValues, "make", make);
+        return queryValues.Count == 0
+            ? "api/listings/models"
+            : $"api/listings/models?{string.Join("&", queryValues)}";
     }
 
     private static void AppendRawQueryValue(List<string> queryValues, string queryName, string? queryValue)

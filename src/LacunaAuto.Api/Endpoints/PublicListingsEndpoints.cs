@@ -21,10 +21,10 @@ public static class PublicListingsEndpoints
                 "/api/listings",
                 async (string? make, string? sort, LacunaAutoDbContext dbContext, CancellationToken cancellationToken) =>
                 {
-                    var normalizedMake = string.IsNullOrWhiteSpace(make) ? null : make.Trim();
+                    var normalizedMake = NormalizeOptionalText(make);
                     var normalizedSort = NormalizeSort(sort);
 
-                    var publishedListingsQuery = CreatePublishedListingsQuery(dbContext, normalizedMake);
+                    var publishedListingsQuery = CreatePublishedListingsQuery(dbContext, normalizedMake, normalizedModel: null);
                     var orderedListingsQuery = ApplySort(publishedListingsQuery, normalizedSort);
 
                     var publishedListings = await SelectPublicListingProjection(orderedListingsQuery)
@@ -47,7 +47,7 @@ public static class PublicListingsEndpoints
             .AllowAnonymous()
             .WithName("GetListingsPage")
             .WithSummary("Gets one published listings page for public browsing.")
-            .WithDescription("Returns paged listing card data for published listings. Applies published and optional make filters before counting and paging.")
+            .WithDescription("Returns paged listing card data for published listings. Applies published and optional make/model filters before counting and paging.")
             .Produces<PublicListingsPageDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
@@ -83,6 +83,15 @@ public static class PublicListingsEndpoints
             .Produces<List<string>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
+        endpoints.MapGet("/api/listings/models", GetListingModelsAsync)
+            .AllowAnonymous()
+            .WithName("GetListingModels")
+            .WithSummary("Gets published listing models for one make.")
+            .WithDescription("Returns case-insensitive distinct model options from published listings for the selected make.")
+            .Produces<List<string>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
         endpoints.MapGet("/api/listings/{id:int}", GetListingAsync)
             .AllowAnonymous()
             .WithName("GetListing")
@@ -104,8 +113,43 @@ public static class PublicListingsEndpoints
         return listing is null ? TypedResults.NotFound() : TypedResults.Ok(MapPublicListingCard(listing));
     }
 
+    private static async Task<IResult> GetListingModelsAsync(
+        string? make,
+        HttpContext context,
+        LacunaAutoDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var normalizedMake = NormalizeOptionalText(make);
+        if (normalizedMake is null)
+        {
+            return CreateInvalidFilterProblem(
+                context,
+                "Invalid model options filter.",
+                "Query parameter 'make' is required.");
+        }
+
+        var publishedModels = await CreatePublishedListingsQuery(dbContext, normalizedMake, normalizedModel: null)
+            .Select(listing => listing.Model)
+            .Distinct()
+            .OrderBy(model => model)
+            .ToListAsync(cancellationToken);
+
+        var visibleModels = new List<string>(publishedModels.Count);
+        var seenModels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var publishedModel in publishedModels)
+        {
+            if (seenModels.Add(publishedModel))
+            {
+                visibleModels.Add(publishedModel);
+            }
+        }
+
+        return TypedResults.Ok(visibleModels);
+    }
+
     private static async Task<IResult> GetListingsPageAsync(
         string? make,
+        string? model,
         string? sort,
         string? page,
         string? pageSize,
@@ -118,10 +162,19 @@ public static class PublicListingsEndpoints
             return CreateInvalidPaginationProblem(context, parseError);
         }
 
-        var normalizedMake = string.IsNullOrWhiteSpace(make) ? null : make.Trim();
+        var normalizedMake = NormalizeOptionalText(make);
+        var normalizedModel = NormalizeOptionalText(model);
+        if (normalizedModel is not null && normalizedMake is null)
+        {
+            return CreateInvalidFilterProblem(
+                context,
+                "Invalid listings filters.",
+                "Query parameter 'make' is required when 'model' is provided.");
+        }
+
         var normalizedSort = NormalizeSort(sort);
 
-        var publishedListingsQuery = CreatePublishedListingsQuery(dbContext, normalizedMake);
+        var publishedListingsQuery = CreatePublishedListingsQuery(dbContext, normalizedMake, normalizedModel);
         var totalCount = await publishedListingsQuery.CountAsync(cancellationToken);
         var totalPages = totalCount == 0
             ? 0
@@ -160,18 +213,24 @@ public static class PublicListingsEndpoints
 
     private static IQueryable<VehicleListing> CreatePublishedListingsQuery(
         LacunaAutoDbContext dbContext,
-        string? normalizedMake)
+        string? normalizedMake,
+        string? normalizedModel)
     {
         var publishedListingsQuery = dbContext.Listings
             .AsNoTracking()
             .Where(listing => listing.IsPublished);
 
-        if (normalizedMake is null)
+        if (normalizedMake is not null)
         {
-            return publishedListingsQuery;
+            publishedListingsQuery = ApplyMakeFilter(publishedListingsQuery, dbContext, normalizedMake);
         }
 
-        return ApplyMakeFilter(publishedListingsQuery, dbContext, normalizedMake);
+        if (normalizedModel is not null)
+        {
+            publishedListingsQuery = ApplyModelFilter(publishedListingsQuery, dbContext, normalizedModel);
+        }
+
+        return publishedListingsQuery;
     }
 
     private static IQueryable<VehicleListing> ApplyMakeFilter(
@@ -186,6 +245,20 @@ public static class PublicListingsEndpoints
         }
 
         return listings.Where(listing => string.Equals(listing.Make, make, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private static IQueryable<VehicleListing> ApplyModelFilter(
+        IQueryable<VehicleListing> listings,
+        LacunaAutoDbContext dbContext,
+        string model)
+    {
+        if (dbContext.Database.IsNpgsql())
+        {
+            var escapedModel = EscapeLikePattern(model);
+            return listings.Where(listing => EF.Functions.ILike(listing.Model, escapedModel, "\\"));
+        }
+
+        return listings.Where(listing => string.Equals(listing.Model, model, StringComparison.InvariantCultureIgnoreCase));
     }
 
     private static IOrderedQueryable<VehicleListing> ApplySort(IQueryable<VehicleListing> listings, string? sort)
@@ -281,6 +354,23 @@ public static class PublicListingsEndpoints
             {
                 ["traceId"] = context.TraceIdentifier
             });
+    }
+
+    private static ProblemHttpResult CreateInvalidFilterProblem(HttpContext context, string title, string detail)
+    {
+        return TypedResults.Problem(
+            statusCode: StatusCodes.Status400BadRequest,
+            title: title,
+            detail: detail,
+            extensions: new Dictionary<string, object?>
+            {
+                ["traceId"] = context.TraceIdentifier
+            });
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private static string EscapeLikePattern(string value)

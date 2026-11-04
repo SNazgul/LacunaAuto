@@ -42,13 +42,14 @@ public sealed class ListingsClient(HttpClient httpClient)
 
     public async Task<PagedVehicleListingsModel> GetListingsPageAsync(
         string? make,
+        string? model,
         string? sort,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
     {
         ValidatePagination(page, pageSize);
-        var route = BuildListingsPageRoute(make, sort, page, pageSize);
+        var route = BuildListingsPageRoute(make, model, sort, page, pageSize);
         return await _httpClient.GetFromJsonAsync<PagedVehicleListingsModel>(route, _jsonOptions, cancellationToken)
             ?? throw new JsonException("The paged listings response was empty.");
     }
@@ -70,6 +71,34 @@ public sealed class ListingsClient(HttpClient httpClient)
 
         distinctMakes.Sort(StringComparer.OrdinalIgnoreCase);
         return distinctMakes;
+    }
+
+    public async Task<IReadOnlyList<string>> GetListingModelsAsync(string make, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(make))
+        {
+            throw new ArgumentException("Make is required when requesting models.", nameof(make));
+        }
+
+        var normalizedMake = make.Trim();
+        var models = await _httpClient.GetFromJsonAsync<List<string>>(
+            $"api/listings/models?make={Uri.EscapeDataString(normalizedMake)}",
+            _jsonOptions,
+            cancellationToken)
+            ?? throw new JsonException("The listing models response was empty.");
+
+        var distinctModels = new List<string>(models.Count);
+        var seenModels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var model in models)
+        {
+            if (seenModels.Add(model))
+            {
+                distinctModels.Add(model);
+            }
+        }
+
+        distinctModels.Sort(StringComparer.OrdinalIgnoreCase);
+        return distinctModels;
     }
 
     public async Task<VehicleListingCardModel?> GetListingAsync(int id, CancellationToken cancellationToken)
@@ -105,13 +134,18 @@ public sealed class ListingsClient(HttpClient httpClient)
             : $"api/listings?{string.Join("&", queryValues)}";
     }
 
-    private static string BuildListingsPageRoute(string? make, string? sort, int page, int pageSize)
+    private static string BuildListingsPageRoute(string? make, string? model, string? sort, int page, int pageSize)
     {
-        var queryValues = new List<string>(4);
+        var queryValues = new List<string>(5);
 
         if (!string.IsNullOrWhiteSpace(make))
         {
             queryValues.Add($"make={Uri.EscapeDataString(make.Trim())}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            queryValues.Add($"model={Uri.EscapeDataString(model.Trim())}");
         }
 
         var normalizedSort = NormalizeSort(sort);

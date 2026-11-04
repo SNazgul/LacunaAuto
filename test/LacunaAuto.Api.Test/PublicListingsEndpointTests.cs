@@ -358,6 +358,85 @@ public sealed class PublicListingsEndpointTests
     }
 
     [Fact]
+    public async Task GetListingsPage_ShouldApplyModelFilterWhenMakeIsProvided()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "TESLA", model: "MODEL 3"),
+            CreateListing(id: 3, isPublished: true, make: "Tesla", model: "Model Y"),
+            CreateListing(id: 4, isPublished: true, make: "BMW", model: "Model 3"),
+            CreateListing(id: 5, isPublished: false, make: "Tesla", model: "Model 3")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings/page?make=tesla&model=model%203&page=1&pageSize=8", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await response.Content.ReadFromJsonAsync<PublicListingsPageResponse>(cancellationToken);
+
+        Assert.NotNull(page);
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal([1, 2], page.Items.Select(listing => listing.Id));
+        Assert.All(page.Items, listing => Assert.Equal("Model 3", listing.Model, ignoreCase: true));
+    }
+
+    [Fact]
+    public async Task GetListingsPage_ShouldTreatPercentAndUnderscoreAsLiteralCharactersInModelFilter()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model%_Special"),
+            CreateListing(id: 2, isPublished: true, make: "Tesla", model: "ModelAASpecial"),
+            CreateListing(id: 3, isPublished: true, make: "Tesla", model: "ModelXXSpecial")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings/page?make=tesla&model=model%25_special&page=1&pageSize=8", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await response.Content.ReadFromJsonAsync<PublicListingsPageResponse>(cancellationToken);
+
+        Assert.NotNull(page);
+        Assert.Single(page.Items);
+        Assert.Equal(1, page.Items[0].Id);
+        Assert.Equal("Model%_Special", page.Items[0].Model);
+    }
+
+    [Fact]
+    public async Task GetListingsPage_ShouldTreatBlankModelAsUnset()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "TESLA", model: "Model Y"),
+            CreateListing(id: 3, isPublished: true, make: "BMW", model: "Model 3")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings/page?make=tesla&model=%20%20%20&page=1&pageSize=8", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var page = await response.Content.ReadFromJsonAsync<PublicListingsPageResponse>(cancellationToken);
+
+        Assert.NotNull(page);
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal([1, 2], page.Items.Select(listing => listing.Id));
+    }
+
+    [Fact]
     public async Task GetListingsPage_ShouldReturnEmptyItemsAndFilteredTotalsWhenPageExceedsLastPage()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -410,6 +489,24 @@ public sealed class PublicListingsEndpointTests
     }
 
     [Fact]
+    public async Task GetListingsPage_ShouldReturnProblemDetailsWhenModelIsProvidedWithoutMake()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync([CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3")], cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync("/api/listings/page?model=Model%203&page=1&pageSize=8", cancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal("Invalid listings filters.", payload.RootElement.GetProperty("title").GetString());
+        Assert.True(payload.RootElement.TryGetProperty("traceId", out var traceId));
+        Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));
+    }
+
+    [Fact]
     public async Task GetListingMakes_ShouldReturnDistinctPublishedMakesAcrossAllPages()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -432,6 +529,74 @@ public sealed class PublicListingsEndpointTests
         Assert.Contains(makes, make => string.Equals(make, "tesla", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(makes, make => string.Equals(make, "bmw", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(makes, make => string.Equals(make, "audi", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData("/api/listings/models")]
+    [InlineData("/api/listings/models?make=")]
+    [InlineData("/api/listings/models?make=%20%20%20")]
+    public async Task GetListingModels_ShouldRequireNonBlankMake(string route)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync([CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3")], cancellationToken);
+
+        using var client = factory.CreateClient();
+        using var response = await client.GetAsync(route, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal("Invalid model options filter.", payload.RootElement.GetProperty("title").GetString());
+        Assert.True(payload.RootElement.TryGetProperty("traceId", out var traceId));
+        Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));
+    }
+
+    [Fact]
+    public async Task GetListingModels_ShouldReturnDistinctPublishedModelsForTheSelectedMake()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "TESLA", model: "MODEL 3"),
+            CreateListing(id: 3, isPublished: true, make: "Tesla", model: "Model Y"),
+            CreateListing(id: 4, isPublished: true, make: "BMW", model: "X5"),
+            CreateListing(id: 5, isPublished: false, make: "Tesla", model: "Roadster")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        var models = await client.GetFromJsonAsync<List<string>>("/api/listings/models?make=tesla", cancellationToken);
+
+        Assert.NotNull(models);
+        Assert.Equal(2, models.Select(model => model.ToLowerInvariant()).Distinct().Count());
+        Assert.Contains(models, model => string.Equals(model, "model 3", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(models, model => string.Equals(model, "model y", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(models, model => string.Equals(model, "x5", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(models, model => string.Equals(model, "roadster", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task GetListingModels_ShouldReturnEmptyForUnknownMake()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var factory = new ListingsApiFactory();
+        await factory.SeedAsync(
+        [
+            CreateListing(id: 1, isPublished: true, make: "Tesla", model: "Model 3"),
+            CreateListing(id: 2, isPublished: true, make: "BMW", model: "X5")
+        ],
+            cancellationToken);
+
+        using var client = factory.CreateClient();
+        var models = await client.GetFromJsonAsync<List<string>>("/api/listings/models?make=NotARealMake", cancellationToken);
+
+        Assert.NotNull(models);
+        Assert.Empty(models);
     }
 
     [Fact]

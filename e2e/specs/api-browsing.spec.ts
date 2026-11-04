@@ -260,6 +260,37 @@ test("Web forwards the live API contract and keeps missing details as JSON 404",
   expect(pagedMakeAndSortPayload.items.every((card: { make: string }) => card.make.toLowerCase() === "tesla")).toBe(true);
   expect(isOrderedByYear(pagedMakeAndSortPayload.items, "desc")).toBe(true);
 
+  const pagedMakeOnly = await request.get(absoluteUrl("/api/listings/page?make=tesla&page=1&pageSize=8"));
+  expect(pagedMakeOnly.status()).toBe(200);
+  const pagedMakeOnlyPayload = await pagedMakeOnly.json();
+  expect(pagedMakeOnlyPayload.totalCount).toBeGreaterThan(0);
+  expect(pagedMakeOnlyPayload.items.length).toBeGreaterThan(0);
+  expect(pagedMakeOnlyPayload.items.every((card: { make: string }) => card.make.toLowerCase() === "tesla")).toBe(true);
+
+  const pagedBlankModel = await request.get(absoluteUrl("/api/listings/page?make=tesla&model=%20%20%20&page=1&pageSize=8"));
+  expect(pagedBlankModel.status()).toBe(200);
+  const pagedBlankModelPayload = await pagedBlankModel.json();
+  expect(pagedBlankModelPayload.totalCount).toBe(pagedMakeOnlyPayload.totalCount);
+  expect(pagedBlankModelPayload.items.map((card: { id: number }) => card.id)).toEqual(
+    pagedMakeOnlyPayload.items.map((card: { id: number }) => card.id)
+  );
+
+  const selectedModel = pagedMakeOnlyPayload.items[0].model as string;
+  const encodedSelectedModel = encodeURIComponent(selectedModel);
+  const pagedMakeAndModel = await request.get(absoluteUrl(`/api/listings/page?make=tesla&model=${encodedSelectedModel}&page=1&pageSize=8`));
+  expect(pagedMakeAndModel.status()).toBe(200);
+  const pagedMakeAndModelPayload = await pagedMakeAndModel.json();
+  expect(pagedMakeAndModelPayload.totalCount).toBeGreaterThan(0);
+  expect(pagedMakeAndModelPayload.items.every((card: { make: string }) => card.make.toLowerCase() === "tesla")).toBe(true);
+  expect(pagedMakeAndModelPayload.items.every((card: { model: string }) => card.model.toLowerCase() === selectedModel.toLowerCase())).toBe(true);
+
+  const modelWithoutMake = await request.get(absoluteUrl("/api/listings/page?model=Model%203&page=1&pageSize=8"));
+  expect(modelWithoutMake.status()).toBe(400);
+  expect(modelWithoutMake.headers()["content-type"]).toContain("application/problem+json");
+  const modelWithoutMakeProblem = await modelWithoutMake.json();
+  expect(typeof modelWithoutMakeProblem.traceId).toBe("string");
+  expect(modelWithoutMakeProblem.traceId.length).toBeGreaterThan(0);
+
   const beyondLastPage = await request.get(absoluteUrl("/api/listings/page?page=2147483647&pageSize=8"));
   expect(beyondLastPage.status()).toBe(200);
   const beyondLastPagePayload = await beyondLastPage.json();
@@ -291,6 +322,31 @@ test("Web forwards the live API contract and keeps missing details as JSON 404",
   expect(Array.isArray(makes)).toBe(true);
   expect(makes.length).toBeGreaterThan(0);
   expect(makes.some((make: string) => make.toLowerCase() === "volkswagen")).toBe(true);
+
+  const modelsMissingMake = await request.get(absoluteUrl("/api/listings/models"));
+  expect(modelsMissingMake.status()).toBe(400);
+  expect(modelsMissingMake.headers()["content-type"]).toContain("application/problem+json");
+  const modelsMissingMakeProblem = await modelsMissingMake.json();
+  expect(typeof modelsMissingMakeProblem.traceId).toBe("string");
+  expect(modelsMissingMakeProblem.traceId.length).toBeGreaterThan(0);
+
+  const modelsBlankMake = await request.get(absoluteUrl("/api/listings/models?make=%20%20%20"));
+  expect(modelsBlankMake.status()).toBe(400);
+  expect(modelsBlankMake.headers()["content-type"]).toContain("application/problem+json");
+  const modelsBlankMakeProblem = await modelsBlankMake.json();
+  expect(typeof modelsBlankMakeProblem.traceId).toBe("string");
+  expect(modelsBlankMakeProblem.traceId.length).toBeGreaterThan(0);
+
+  const modelsUnknownMake = await request.get(absoluteUrl("/api/listings/models?make=NotARealMake"));
+  expect(modelsUnknownMake.status()).toBe(200);
+  expect(await modelsUnknownMake.json()).toEqual([]);
+
+  const modelsForTesla = await request.get(absoluteUrl("/api/listings/models?make=tesla"));
+  expect(modelsForTesla.status()).toBe(200);
+  const teslaModels = await modelsForTesla.json();
+  expect(Array.isArray(teslaModels)).toBe(true);
+  expect(teslaModels.length).toBeGreaterThan(0);
+  expect(teslaModels.some((model: string) => model.toLowerCase() === selectedModel.toLowerCase())).toBe(true);
 
   const detail = await request.get(absoluteUrl(`/api/listings/${cards[0].id}`));
   expect(detail.status()).toBe(200);

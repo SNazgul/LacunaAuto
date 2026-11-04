@@ -28,6 +28,55 @@ Continue the product roadmap with the first agreed browsing behavior.
 
 - Increased the STRATA Vision smoke timeout from 60 to 240 seconds. All eight runner tests passed, and the two-PNG check accepted a loopback response delayed by 65 seconds.
 
+- Listings combobox Escape→ArrowUp reopen fix completed on `feature/listings-model-filter`.
+  - Updated [`Listings.razor`](../../src/LacunaAuto.Web/LacunaAuto.Web.Client/Pages/Listings.razor) so make/model active-option scrolling is queued and executed in `OnAfterRenderAsync`, ensuring the active option scrolls only after the listbox has rendered.
+  - Fixed keyboard reopen behavior for both searchable dropdowns: after Escape closes the popup, ArrowUp reopens it on the last option and keeps that option visible.
+  - Extended the existing 390px Playwright regression in [`listings.spec.ts`](../../e2e/specs/listings.spec.ts) with Escape → ArrowUp coverage for both make and model listboxes.
+  - Verification on 2026-11-04:
+    - `dotnet build src/LacunaAuto.Web/LacunaAuto.Web/LacunaAuto.Web.csproj` — passed.
+    - `npm --prefix e2e test -- specs/listings.spec.ts --grep "390px combobox keyboard keeps active option visible and tabs past popup options"` — **1/1 passed**.
+- Listings make/model combobox regression follow-up completed on `feature/listings-model-filter`.
+  - Listings request timing on make changes fixed in [`Listings.razor`](../../src/LacunaAuto.Web/LacunaAuto.Web.Client/Pages/Listings.razor): selecting a make now starts the page-1 listings request immediately while model options load independently.
+  - Preserved stale model-options response protection when switching makes during pending model-options requests.
+  - Kept model-options retry scoped to model options only (no coupled listings refresh).
+  - Improved combobox keyboard behavior:
+    - active make/model option now scrolls into view during ArrowUp/ArrowDown navigation;
+    - popup option buttons are removed from tab order (`tabindex="-1"`);
+    - Tab closes make/model popups and advances focus naturally.
+  - Added JS helper `scrollListboxOptionIntoView` in [`App.razor`](../../src/LacunaAuto.Web/LacunaAuto.Web/Components/App.razor) for listbox active-option visibility.
+  - Added Playwright regressions in [`listings.spec.ts`](../../e2e/specs/listings.spec.ts):
+    - delayed model-options + make-switch coverage ensuring immediate listings filtering, stale-response safety, and model-options-only retry;
+    - 390px keyboard coverage for active-option visibility while scrolling and Tab behavior, with Enter/Escape/mouse interaction preservation.
+  - Verification on 2026-11-04:
+    - `dotnet build src/LacunaAuto.Web/LacunaAuto.Web/LacunaAuto.Web.csproj` — passed.
+    - `npm --prefix e2e test -- specs/listings.spec.ts specs/api-browsing.spec.ts` — **26/26 passed**.
+    - `npm --prefix e2e test` — **62/62 passed**.
+- Listings make-dependent model filter + searchable combobox slice implemented on `feature/listings-model-filter` (spec commit `1e4340f` included).
+  - Added `GET /api/listings/models?make=...` with contract behavior:
+    - missing/blank make -> `400 ProblemDetails` with `traceId`;
+    - unknown make -> `200 []`.
+  - Extended `GET /api/listings/page` with optional `model` filter and contract behavior:
+    - blank model leaves model filter unset;
+    - nonblank model without make -> `400 ProblemDetails` with `traceId`.
+  - Applied escaped exact case-insensitive matching for make/model in PostgreSQL (`ILIKE` with literal `%`, `_`, `\` handling) before count/paging; preserved sort semantics and `Id` tie-breaker.
+  - Updated Web proxy forwarding to include `model` query and `/api/listings/models`, preserving upstream `400 ProblemDetails` passthrough for listings routes.
+  - Replaced make/model selectors on `/listings` with accessible searchable combobox/listbox controls:
+    - typed query is separate from applied filter;
+    - typing narrows suggestions without triggering a listings request;
+    - Enter applies highlighted option;
+    - Escape/blur without selection restores applied value;
+    - changing/clearing make clears selected model; make/model changes reset page to 1 while keeping sort;
+    - preserved stale model-options response protection.
+  - Added/updated coverage for API contract, client route composition, live Web-proxy + PostgreSQL behavior, and 390px keyboard/typeahead flows.
+  - Verification on 2026-11-04:
+    - `dotnet build src/LacunaAuto.Api/LacunaAuto.Api.csproj` — passed.
+    - `dotnet build src/LacunaAuto.Web/LacunaAuto.Web/LacunaAuto.Web.csproj` — passed.
+    - `dotnet test test/LacunaAuto.Api.Test/LacunaAuto.Api.Test.csproj` — **42/42 passed**.
+    - `dotnet test test/LacunaAuto.UI.Shared.Tests/LacunaAuto.UI.Shared.Tests.csproj` — **28/28 passed**.
+    - `npm --prefix e2e test -- specs/api-browsing.spec.ts` — **12/12 passed**.
+    - `npm --prefix e2e test -- specs/listings.spec.ts` — **12/12 passed**.
+    - `npm --prefix e2e test` — **60/60 passed**.
+    - `dotnet restore/build/test LacunaAuto.sln` — blocked by existing `NETSDK1147` MAUI Android workload requirement (`LacunaAuto.Hybrid` / `LacunaAuto.Frontend`), unchanged by this slice.
 - Listings pagination review follow-up completed on `feature/listings-pagination`.
   - Added post-pagination accessibility behavior on `/listings`: after successful Previous/Next actions, the app scrolls the next-page results start under the sticky header and moves focus to the results heading for keyboard/screen-reader continuity.
   - Limited upstream `400 ProblemDetails` passthrough in the Web proxy to `GET /api/listings/page` only; other listings routes keep existing non-success handling.

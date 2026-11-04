@@ -133,6 +133,8 @@ Initial filters may include:
 
 Filters should be introduced gradually. The first implementation may contain only a subset.
 
+Buyers can type in the make and model selectors to narrow suggestions from published listings. Model suggestions are scoped to the selected make. Choosing a suggestion applies that value as a filter.
+
 ### 6.3 View Listing Details
 
 As a vehicle buyer, I want to open a listing and see detailed vehicle information so that I can decide whether the vehicle is interesting.
@@ -150,6 +152,8 @@ As a seller, I want to register with email and verify my account during registra
 ### 6.6 Create and Manage Listings
 
 As a seller, I want to enter vehicle details, upload photos, publish a listing, and later edit, unpublish, or delete it. Only the owning user may manage the listing and its photos through seller features.
+
+Sellers can select existing makes and models or enter their own name for either field. Each model belongs to the make selected or entered by the seller. The project team can add known makes and models as verified entries. New seller-entered names are stored as unverified. Authorized administrators can correct spelling and verify entries. Corrections are reflected in the associated listings and their filter options.
 
 ### 6.7 Discuss a Listing Privately
 
